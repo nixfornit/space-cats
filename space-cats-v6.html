@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Captain Whiskers: Moon Base Mission</title>
+<style>
+  :root {
+    --card: #f3eefc;
+    --ink: #2a1f47;
+    --cat: #f39a3d;
+    --shield: #7cc8ff;
+    --good: #2f8f5e;
+    --bad: #c9485b;
+    --unk: #7a6f96;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #140f2e; overflow: hidden; }
+  body { font-family: "Chalkboard SE", "Trebuchet MS", "Segoe UI", sans-serif; color: var(--ink); }
+  canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+
+  #hud { position: fixed; top: 12px; left: 14px; right: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #fff; font-size: 16px; pointer-events: none; }
+  #trip { flex: 1; max-width: 240px; }
+  #trip .track { height: 10px; border-radius: 6px; background: rgba(255,255,255,0.18); margin-top: 5px; overflow: hidden; }
+  #trip .fill { height: 100%; width: 0; background: var(--cat); border-radius: 6px; }
+  #res { font-size: 15px; text-align: right; }
+  #shield { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin-top: 4px; }
+  #shield i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--shield); display: inline-block; }
+  #shield i.on { background: var(--shield); }
+  #toast { position: fixed; top: 76px; left: 12px; right: 12px; max-width: 560px; margin: 0 auto; text-align: center; color: #fff; font-size: 17px; line-height: 1.4; background: rgba(20, 15, 46, 0.82); border-radius: 14px; padding: 8px 12px; pointer-events: none; opacity: 0; transition: opacity 0.3s; }
+
+  #overlay { position: fixed; inset: 0; display: flex; align-items: flex-start; justify-content: center; padding: 16px; background: rgba(20, 15, 46, 0.55); overflow-y: auto; touch-action: pan-y; }
+  .card { background: var(--card); border-radius: 22px; padding: 20px 18px; width: 100%; max-width: 480px; margin: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.35); }
+  .card.wide { max-width: 1040px; }
+  .card h1 { font-size: 28px; line-height: 1.15; margin-bottom: 10px; }
+  .card h2 { font-size: 24px; margin-bottom: 8px; }
+  .card h3 { font-size: 20px; }
+  .card p { font-size: 17px; line-height: 1.5; margin-bottom: 12px; }
+  .card ul { margin: 0 0 14px 20px; font-size: 16px; line-height: 1.5; }
+  .resbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .pill { background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 16px; font-weight: bold; }
+  .planets { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; }
+  .pcard { background: #fff; border-radius: 16px; padding: 14px; }
+  .pcard.here { outline: 3px solid var(--cat); }
+  .phead { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .dot { width: 40px; height: 40px; border-radius: 50%; flex: none; }
+  .tag { font-size: 13px; background: #ece5fb; border-radius: 999px; padding: 2px 8px; margin-left: 4px; }
+  .facts { font-size: 15px; margin-bottom: 10px; }
+  details { border-bottom: 1px solid #eee7fa; padding: 5px 0; }
+  summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 8px; }
+  summary::-webkit-details-marker { display: none; }
+  summary .q { flex: none; width: 22px; height: 22px; border-radius: 50%; background: #ddd3f0; text-align: center; font-size: 14px; line-height: 22px; }
+  details p { font-size: 15px !important; margin: 6px 0 2px !important; color: #4a3f6b; }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 14px; margin-bottom: 10px; }
+  .chk { border-radius: 8px; padding: 5px 7px; background: #f1eef7; color: var(--unk); }
+  .chk.yes { background: #e0f3e8; color: var(--good); }
+  .chk.no { background: #fbe4e7; color: var(--bad); }
+  .cost { font-size: 15px; margin-bottom: 6px; }
+  .btn { display: block; width: 100%; font: inherit; font-size: 18px; padding: 12px 14px; border-radius: 14px; border: none; background: var(--cat); color: var(--ink); cursor: pointer; margin-top: 8px; }
+  .btn.alt { background: #ddd3f0; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn:focus-visible, summary:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  .fun { background: #fff; border-radius: 14px; padding: 12px 14px; }
+  .note { font-size: 15px !important; color: #5a4f7a; }
+  .stars { font-size: 38px; letter-spacing: 4px; margin-bottom: 8px; }
+  .hidden { display: none !important; }
+  #caption { position: fixed; left: 12px; right: 12px; bottom: 14px; margin: 0 auto; max-width: 620px; background: var(--card); border-radius: 20px; padding: 16px 18px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
+  #caption p { font-size: 19px; line-height: 1.45; margin-bottom: 10px; min-height: 3em; }
+  #caption .row, .card .row { display: flex; gap: 8px; }
+  #caption .row .btn, .card .row .btn { margin-top: 0; }
+  .steps { font-size: 14px; color: #6a5f8a; margin-bottom: 6px; }
+  .pics { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; background: #fff; border-radius: 14px; padding: 10px; margin-bottom: 12px; }
+  .pics figure { text-align: center; font-size: 13px; width: 72px; }
+  .pics img { width: 56px; height: 56px; display: block; margin: 0 auto 2px; }
+  .tips li { margin-bottom: 6px; }
+  .hintbox { background: #fff6dc; border-left: 5px solid #f3b53d; border-radius: 10px; padding: 10px 12px; font-size: 16px; margin-bottom: 10px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .toolbar .btn { width: auto; flex: 1; min-width: 140px; margin-top: 0; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="trip"><span id="tripLabel">To ...</span><div class="track"><div class="fill" id="tripFill"></div></div></div>
+  <div><div id="res"></div><div id="shield"><span>Shield</span><i></i><i></i><i></i></div></div>
+</div>
+<div id="toast"></div>
+<div id="overlay"></div>
+<div id="caption" class="hidden"><div class="steps" id="capStep"></div><p id="capText"></p><div class="row"><button class="btn alt" id="capBack" onclick="storyNav(-1)">Back</button><button class="btn" id="capNext" onclick="storyNav(1)">Next</button></div><button class="btn alt" onclick="endStory()" style="font-size:15px;padding:8px">Skip the story</button></div>
+
+<script>
+// ---------- Stars, distances, and "Why?" explanations ----------
+const STARS = {
+  yellow: { name: 'Yellow star, like our Sun', comfy: 3, why: 'A star like our Sun. The comfy spot is a medium distance away, like Earth.' },
+  orange: { name: 'Orange star', comfy: 3, why: 'A bit smaller and cooler than our Sun, and it shines steadily for a very long time. A medium distance is comfy.' },
+  two: { name: 'Two suns!', comfy: 3, why: 'Two suns! Real planets like this exist. A medium distance is comfy.' },
+  red: { name: 'Dim red dwarf star', comfy: 1, why: 'Red dwarfs are small and dim. A planet has to be VERY close to one to stay warm.' },
+  blue: { name: 'Super-hot blue star', comfy: 5, why: 'Blue stars are the hottest stars of all. A planet has to be VERY far away to stay comfy.' },
+  black: { name: 'A black hole (no real sun!)', comfy: 9, why: 'A black hole gives almost no warm sunlight, and its gravity is so strong it slows down time. A visit here costs 8 extra days!' },
+};
+const DIST = ['', 'Very close', 'Close', 'Medium', 'Far', 'Very far'];
+const DIST_WHY = 'Hot or cold? It depends on the star! Dim stars need their planets close. Super-hot stars need them far away. Check the star clue too.';
+function gravWhy(g) { return g > 1.5 ? 'Heavy gravity squishes and tires you out, and it takes 1 extra fuel to blast off again.' : g < 0.5 ? 'Very weak gravity. Small, light planets can have trouble holding on to their air.' : 'Close to Earth\'s gravity. Good for cat muscles and bones.'; }
+const DAY_WHY = { fast: 'A super-fast spin means very short days, and it can stir up wild storms.', normal: 'A day close to Earth\'s 24 hours gives time for sunshine and sleep.', slow: 'A slow spin means very long days and nights, so it gets extra hot or extra cold.' };
+const SIZE = { small: ['Smaller than Earth', 'Smaller planets usually have weaker gravity.'], earth: ['About Earth-size', 'About the same size as Earth.'], super: ['Super-Earth (bigger than Earth)', 'A super-Earth: rocky, but bigger than Earth. Bigger usually means stronger gravity.'], giant: ['Giant!', 'Giant planets are usually made of gas, with no solid ground to stand on.'] };
+const NOTE_WHY = 'Telescopes can see colors and clouds, but not everything. Some surprises only show up when you land!';
+function tempGuess(p) { const c = STARS[p.star].comfy; return p.sd < c ? 'hot' : p.sd > c ? 'cold' : 'right'; }
+const CHECKS = [['ground', 'Solid ground'], ['water', 'Water'], ['air', 'Air'], ['gravity', 'Gravity OK'], ['temp', 'Temperature OK'], ['safe', 'Safe and calm']];
+const Y = (t) => [true, t], N = (t) => [false, t];
+
+// ---------- Planet pool: 18 made-up planets built on real science ----------
+const POOL = [
+  // ----- 6 of 6 -----
+  { name: 'Twin Suns', c1: '#8be0a8', c2: '#2f6fa3', g: 0.9, star: 'two', sd: 3, day: '26 hours', size: 'earth', note: 'Blue oceans and green land',
+    checks: { ground: Y('Grassy hills'), water: Y('Rivers and lakes'), air: Y('Breathable'), gravity: Y('Just right'), temp: Y('Comfy'), safe: Y('Calm and peaceful') },
+    react: 'twosuns', caption: 'Purrrr... two sunsets every evening!',
+    found: 'Grassy hills, fresh rivers, and air you can breathe. Captain Whiskers took a nap in double sunshine.',
+    science: 'Planets with two suns are real! One of the first ones found, Kepler-16b, was discovered in 2011 by the Kepler space telescope.' },
+  { name: 'Platypia', c1: '#7fd0c8', c2: '#3a6e4a', look: 'islands', g: 1.0, star: 'orange', sd: 3, day: '22 hours', size: 'earth', note: 'Lots of twisty blue rivers',
+    checks: { ground: Y('Grassy riverbanks'), water: Y('Rivers everywhere'), air: Y('Breathable'), gravity: Y('Just right'), temp: Y('Warm and pleasant'), safe: Y('Friendly platypuses') },
+    react: 'platypus', caption: 'Platypuses everywhere! Hello, new friends!',
+    found: 'Rivers, grassy islands, and hundreds of friendly platypuses. Captain Whiskers learned one rule: stay away from the boy platypuses\' ankle spurs!',
+    science: 'Platypuses are real animals from Australia. They are mammals that lay eggs, they find food by sensing tiny electric signals with their bills, and they glow blue-green under UV light! Boy platypuses have a venomous spur on their back legs.' },
+  { name: 'Emberglow', c1: '#c0503a', c2: '#2a1418', g: 0.8, star: 'red', sd: 1, day: '40 hours', size: 'earth', note: 'Very dark, almost black land',
+    checks: { ground: Y('Rocky, with black forests'), water: Y('Warm lakes'), air: Y('Breathable'), gravity: Y('Just right'), temp: Y('Warm and cozy'), safe: Y('Quiet and peaceful') },
+    react: 'ember', caption: 'Black trees? And it\'s so warm and cozy!',
+    found: 'The red star looks dim, but Emberglow is so close to it that it\'s warm and cozy. The trees are black, and the lakes are warm like a bath.',
+    science: 'Planets around dim red dwarf stars have to be very close to stay warm. Scientists have wondered if plants there might be dark or even black, to soak up as much of the dim red light as possible.' },
+  { name: 'Dodo Isle', c1: '#9fe0b0', c2: '#2f8a8a', look: 'islands', g: 1.0, star: 'yellow', sd: 3, day: '23 hours', size: 'earth', note: 'Small green islands in a big blue sea',
+    checks: { ground: Y('Sandy islands'), water: Y('Fresh streams'), air: Y('Breathable'), gravity: Y('Just right'), temp: Y('Warm'), safe: Y('Friendly dodo birds') },
+    react: 'creatures', creature: 'dodo', groundColor: '#e8d49a', waterStrip: true, caption: 'Dodos! I thought you were extinct!',
+    found: 'Dodo Isle is covered in friendly, waddling dodo birds. They can\'t fly, but they love to follow Captain Whiskers around.',
+    science: 'Dodos were real birds that lived on the island of Mauritius. They couldn\'t fly, and they went extinct about 350 years ago after people and new animals arrived on their island.' },
+  { name: 'Unicornia', c1: '#ffd6f5', c2: '#8a7ad6', look: 'sparkle', g: 0.9, star: 'blue', sd: 5, day: '25 hours', size: 'earth', note: 'A rainbow shimmer in the air',
+    checks: { ground: Y('Grassy meadows'), water: Y('Rainbow waterfalls'), air: Y('Breathable'), gravity: Y('Just right'), temp: Y('Just right'), safe: Y('Gentle, sparkly unicorns') },
+    react: 'creatures', creature: 'unicorn', groundColor: '#9fe09a', rainbow: true, caption: 'Unicorns?! This place is magical!',
+    found: 'Sparkly horned horses gallop through the meadows, and waterfalls make rainbows everywhere. The super-hot blue star is very far away, so it\'s just right here.',
+    science: 'Unicorns aren\'t real. But the narwhal is a real whale with a long spiral tusk. It\'s actually a tooth that can grow up to about 10 feet (3 m) long! Long ago, people sold narwhal tusks as "unicorn horns."' },
+  { name: 'Trilobia', c1: '#9fd8e8', c2: '#c9a86a', g: 0.95, star: 'yellow', sd: 3, day: '24 hours', size: 'earth', note: 'Wide sandy beaches and shallow seas',
+    checks: { ground: Y('Sandy beaches'), water: Y('Shallow warm seas'), air: Y('Breathable'), gravity: Y('Just right'), temp: Y('Warm'), safe: Y('Tiny, harmless trilobites') },
+    react: 'creatures', creature: 'trilobite', groundColor: '#e9d39a', waterStrip: true, caption: 'Tiny crunchy crawlers! Don\'t worry, they\'re harmless.',
+    found: 'Trilobia looks like Earth\'s oceans 500 million years ago. Little armored trilobites scuttle along the beach.',
+    science: 'Trilobites were real sea animals that lived for about 270 million years, much longer than the dinosaurs. Their eyes had lenses made of crystal!' },
+  // ----- 5 of 6 -----
+  { name: 'Chonk', c1: '#c9a27a', c2: '#6e4a2a', g: 2.5, star: 'yellow', sd: 3, day: '20 hours', size: 'super', note: 'Big, brown, and rocky',
+    checks: { ground: Y('Rocky'), water: Y('Lakes and rivers'), air: Y('Thick but breathable'), gravity: N('Way too heavy'), temp: Y('Comfy'), safe: Y('Calm') },
+    react: 'squish', caption: 'Oof! I feel like I\'m carrying two extra cats!',
+    found: 'Chonk has water, air, and nice weather, but its gravity squished Captain Whiskers flat. Every step felt like climbing a mountain.',
+    science: 'Planets bigger than Earth but smaller than Neptune are called super-Earths. Astronomers have found lots of them around other stars.' },
+  { name: 'Groovia (Disco Planet)', c1: '#ff7ad9', c2: '#6b2fbf', look: 'disco', g: 0.7, star: 'orange', sd: 3, day: '3 hours', dayType: 'fast', size: 'small', note: 'Flashing rainbow lights!',
+    checks: { ground: Y('Shiny purple crystals'), water: Y('Sparkly crystal lakes'), air: Y('Breathable'), gravity: Y('Light and bouncy'), temp: Y('Nice'), safe: N('Wild windstorms') },
+    react: 'spin', caption: 'Wheee! It\'s a disco! But the wind is SO strong!',
+    found: 'Rainbow lights flash in the sky like a disco, and the crystals sparkle. But the super-fast spin stirs up wild windstorms that never stop.',
+    science: 'Planets that spin fast get squashed into a wider shape, like Jupiter and Saturn. The rainbow lights are auroras. Earth has them too, near the North and South Poles.' },
+  { name: 'Fungalia (Mushroom Planet)', c1: '#b58ad6', c2: '#4a2d6b', look: 'spots', g: 0.8, star: 'red', sd: 3, day: '30 hours', size: 'earth', note: 'Purple patches everywhere',
+    checks: { ground: Y('Soft, squishy moss'), water: Y('Foggy, with lots of puddles'), air: Y('Breathable, but full of spores'), gravity: Y('Just right'), temp: N('Chilly, needs heaters'), safe: Y('Friendly mushrooms (just don\'t eat them!)') },
+    react: 'mushroom', caption: 'Giant glowing mushrooms!',
+    found: 'Mushrooms taller than houses glow in the dim red light. Captain Whiskers sneezed from all the spores, and his paws got cold.',
+    science: 'Mushrooms are fungi. Unlike plants, they don\'t need sunlight, so a dim red star is fine for them. Some real mushrooms glow in the dark! The biggest living thing on Earth is a honey mushroom fungus in Oregon, spreading underground over more than 1,500 football fields. Never eat wild mushrooms: some are poisonous.' },
+  { name: 'Mammothia', c1: '#e8f2ff', c2: '#8aa6c8', look: 'snow', g: 1.0, star: 'yellow', sd: 4, day: '24 hours', size: 'earth', note: 'White and fluffy-looking',
+    checks: { ground: Y('Snowy grasslands'), water: Y('Lots of snow to melt'), air: Y('Breathable'), gravity: Y('Just right'), temp: N('Cold, like an ice age'), safe: Y('Friendly woolly mammoths') },
+    react: 'cold', creature: 'mammoth', caption: 'Brrr! But look at those fuzzy mammoths!',
+    found: 'Mammothia is in an ice age. Herds of woolly mammoths munch on snowy grass. Captain Whiskers\' whiskers froze, but the mammoths were super friendly.',
+    science: 'Woolly mammoths were real! The last ones lived on Wrangel Island, near Russia, until about 4,000 years ago. By then, the Egyptian pyramids had already been built!' },
+  { name: 'Buzzonia', c1: '#a6d66a', c2: '#3a6a2a', g: 1.0, star: 'orange', sd: 3, day: '26 hours', size: 'earth', note: 'Thick green jungle',
+    checks: { ground: Y('Jungle floor'), water: Y('Swamps and rivers'), air: Y('Extra oxygen'), gravity: Y('Just right'), temp: Y('Warm'), safe: N('Giant dragonflies, and fires spread fast') },
+    react: 'buzz', groundColor: '#3f7a35', caption: 'Eek! Dragonflies as big as hawks!',
+    found: 'Buzzonia\'s air has extra oxygen, and the bugs grew HUGE. Giant dragonflies zoomed around Captain Whiskers\' head all day.',
+    science: 'About 300 million years ago, Earth\'s air had more oxygen, and dragonflies called Meganeura had wings as wide as a hawk\'s. Extra oxygen also makes fires burn much faster.' },
+  { name: 'Floatopia', c1: '#f5e6ff', c2: '#9a8ad0', look: 'clouds', g: 1.1, star: 'yellow', sd: 3, day: '14 hours', size: 'giant', note: 'Covered in fluffy white clouds',
+    checks: { ground: N('None, only floating moss islands'), water: Y('Gentle rain'), air: Y('Breathable cloud layer'), gravity: Y('OK'), temp: Y('Nice'), safe: Y('Friendly floating sky jellies') },
+    react: 'float', caption: 'I\'m floating on a moss island in the clouds!',
+    found: 'Floatopia is a giant cloud planet with no ground. Captain Whiskers landed on a floating island of moss, and friendly sky jellies drifted by like balloons.',
+    science: 'Sky jellies are made up. But some scientists have wondered if tiny living things could float in the clouds of other planets, like the clouds of Venus. Nobody has found any yet.' },
+  // ----- 4 or fewer -----
+  { name: 'Jurassica', c1: '#8fd16a', c2: '#2f6b35', g: 1.0, star: 'yellow', sd: 2, day: '24 hours', size: 'earth', note: 'Green jungles and smoking volcanoes',
+    checks: { ground: Y('Jungle and volcanoes'), water: Y('Swamps and rivers'), air: Y('Breathable'), gravity: Y('Just right'), temp: N('Steamy and very hot'), safe: N('T. REX!') },
+    react: 'chase', groundColor: '#4f8a3a', caption: 'RUN! A T. rex thinks I\'m a snack!',
+    found: 'Jurassica looks like Earth did long ago: steamy jungles, volcanoes, and dinosaurs everywhere. A hungry T. rex chased Captain Whiskers all the way back to his ship!',
+    science: 'Dinosaurs lived on Earth for about 165 million years. T. rex lived near the very end, about 68 to 66 million years ago. Back then, Earth was much warmer than today.' },
+  { name: 'Blaze', c1: '#ffb35c', c2: '#b8401e', g: 0.9, star: 'yellow', sd: 1, day: '60 Earth days', dayType: 'slow', size: 'small', note: 'Glowing orange',
+    checks: { ground: Y('Hot rocks'), water: N('None, it boiled away'), air: N('Almost none'), gravity: Y('Just right'), temp: N('Way too hot'), safe: Y('Calm') },
+    react: 'hot', caption: 'Sizzle! My paws are too hot!',
+    found: 'The long, long day let the ground bake. There was no water and almost no air.',
+    science: 'Planets very close to their stars can be hotter than an oven. Mercury, the closest planet to our Sun, reaches about 800°F (430°C) in the day.' },
+  { name: 'Puffy', c1: '#f1dfa6', c2: '#b8975a', look: 'rings', g: 1.1, star: 'yellow', sd: 4, day: '10 hours', size: 'giant', note: 'Pretty rings!',
+    checks: { ground: N('None, it\'s made of gas'), water: N('Only ice crystals'), air: N('Gas you can\'t breathe'), gravity: Y('OK'), temp: N('Freezing'), safe: N('Giant storms') },
+    react: 'sink', caption: 'Nowhere to stand! I\'m sinking into the clouds!',
+    found: 'Puffy is a gas giant. There was no ground at all, so Captain Whiskers floated down through the clouds and zoomed back up.',
+    science: 'Giant planets like Jupiter and Saturn are mostly gas. They have no solid ground to stand on.' },
+  { name: 'Tick-Tock', c1: '#9aa0b8', c2: '#2c3050', g: 1.2, star: 'black', sd: 3, day: '30 hours', size: 'earth', note: 'A glowing ring nearby',
+    checks: { ground: Y('Dark rock'), water: N('Only ice'), air: N('None'), gravity: Y('OK'), temp: N('Freezing'), safe: N('Time runs too slowly') },
+    react: 'time', caption: 'I was here 1 hour... but 8 days passed back home!',
+    found: 'Tick-Tock circles a black hole. Time runs slower here, so while Captain Whiskers explored, days and days went by for everyone else.',
+    science: 'Strong gravity really does slow down time! Albert Einstein figured this out. GPS satellites have to correct their clocks for it, or the maps on phones would be wrong.' },
+  { name: 'Glassworld', c1: '#4a7cff', c2: '#16287a', g: 1.1, star: 'orange', sd: 1, day: '2 Earth days', size: 'giant', note: 'Deep blue, just like Earth!',
+    checks: { ground: N('None, it\'s made of gas'), water: N('None'), air: N('Poisonous gas'), gravity: Y('OK'), temp: N('Over 1,500°F'), safe: N('It rains glass sideways!') },
+    react: 'glass', caption: 'Ouch! It\'s raining GLASS sideways!',
+    found: 'Glassworld looked blue like Earth, but it\'s a scorching gas giant where the wind blows so hard it rains glass sideways.',
+    science: 'This is based on a real planet! HD 189733b is deep blue and about 64 light-years away. It\'s over 1,500°F (800°C), with winds of thousands of miles per hour that may blow glass rain sideways.' },
+  { name: 'Diamondia', c1: '#e8f6ff', c2: '#7aa0c8', look: 'sparkle', g: 1.8, star: 'yellow', sd: 1, day: '18 hours', size: 'super', note: 'Sparkles like a jewel!',
+    checks: { ground: Y('Hard, sparkly crystal rock'), water: N('None'), air: N('None'), gravity: N('Too heavy'), temp: N('Scorching hot'), safe: N('Cracks full of lava') },
+    react: 'diamond', caption: 'So sparkly! But OW, it\'s so hot!',
+    found: 'Diamondia sparkles like a giant jewel, but it\'s so close to its star that the ground is scorching and cracked with lava.',
+    science: 'Scientists once thought a real super-hot planet, 55 Cancri e, might have lots of diamond inside. Newer studies aren\'t sure, but it\'s so hot it may have oceans of lava.' },
+];
+
+// ---------- Discoveries you can grab while flying ----------
+const DISCOVERIES = [
+  { id: 'sat', title: '🛰️ An old satellite', fact: 'The first satellite, Sputnik, was launched in 1957. It was about the size of a beach ball.' },
+  { id: 'comet', title: '☄️ A comet', fact: 'Comets are dirty snowballs of ice and dust. Their tails point away from the Sun.' },
+  { id: 'glove', title: '🧤 A floating glove', fact: 'In 1965, astronaut Ed White lost a spare glove during a spacewalk. It floated away into space!' },
+  { id: 'tardi', title: '🐻 A tardigrade', fact: 'Tardigrades, or water bears, are tiny animals. Some survived being sent into open space in 2007!' },
+  { id: 'record', title: '📀 A golden record', fact: 'The Voyager spacecraft carry golden records with sounds of Earth, like music, laughter, and dogs barking. Voyager 1 is the farthest thing people have ever sent into space.' },
+  { id: 'whale', title: '🐋 A space whale (made up!)', fact: 'Space whales aren\'t real, but real whale songs can travel hundreds of miles through the ocean.' },
+  { id: 'meteor', title: '🪨 An ancient meteorite', fact: 'Some meteorites contain tiny grains of dust that are older than our Sun!' },
+  { id: 'ice', title: '🧊 A chunk of space ice', fact: 'Ice is common in space. Saturn\'s rings are made mostly of chunks of ice.' },
+  { id: 'galaxy', title: '🌌 A faraway galaxy', fact: 'Our galaxy, the Milky Way, has hundreds of billions of stars.' },
+  { id: 'dinorock', title: '🦖 A dino-shaped space rock (made up!)', fact: 'Scientists think a giant space rock hit Earth 66 million years ago and helped wipe out the dinosaurs.' },
+  { id: 'jwst', title: '🔭 A space telescope', fact: 'The James Webb Space Telescope has a gold-coated mirror and can see galaxies from more than 13 billion years ago.' },
+  { id: 'prints', title: '👣 Moon footprints', fact: 'Astronaut footprints on the Moon can last millions of years, because there\'s no wind or rain to wash them away.' },
+];
+
+// ---------- Setup ----------
+const cvs = document.getElementById('game');
+let ctx = cvs.getContext('2d');
+const captionEl = document.getElementById('caption');
+const hud = document.getElementById('hud');
+const overlay = document.getElementById('overlay');
+const toastEl = document.getElementById('toast');
+let W, H;
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth; H = window.innerHeight;
+  cvs.width = W * dpr; cvs.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+const START_FUEL = 7, START_DAYS = 26, FLY_TIME = 26;
+const DAYS_FOR = [0, 4, 6, 8];
+let G = null; // current game
+let state = 'title', dest = 0, cat, obs = [], shield, rechargeT, invuln, progress, spawnT, fishT, zone = -1, specials = [], animT = 0;
+const starfield = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random(), s: Math.random() * 1.6 + 0.4 }));
+const keys = {};
+let pointerTarget = null;
+
+function catSize() { return Math.max(22, Math.min(34, Math.min(W, H) * 0.055)); }
+const rand = a => a[Math.floor(Math.random() * a.length)];
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+// ---------- Controls (touch, mouse, keyboard) ----------
+window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+cvs.addEventListener('pointerdown', e => { pointerTarget = { x: e.clientX, y: e.clientY - (e.pointerType === 'mouse' ? 0 : 70) }; });
+cvs.addEventListener('pointermove', e => {
+  if (e.pointerType === 'mouse') pointerTarget = { x: e.clientX, y: e.clientY }; // laptop: cat follows the mouse
+  else if (pointerTarget) pointerTarget = { x: e.clientX, y: e.clientY - 70 };   // phone: cat stays above your finger
+});
+window.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') pointerTarget = null; });
+cvs.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') pointerTarget = null; });
+
+// ---------- Save: colonies and discoveries (kept between visits when storage is available) ----------
+let SAVE = { colonies: [], found: [] };
+async function loadSave() {
+  try { if (window.storage) { const r = await window.storage.get('moonbase-mission-save'); if (r && r.value) SAVE = Object.assign({ colonies: [], found: [] }, JSON.parse(r.value)); } } catch (e) { /* no save yet */ }
+}
+function persist() {
+  try { if (window.storage) Promise.resolve(window.storage.set('moonbase-mission-save', JSON.stringify(SAVE))).catch(() => {}); } catch (e) { /* storage not available */ }
+}
+
+// ---------- Game setup ----------
+const score = p => CHECKS.filter(([k]) => p.checks[k][0]).length;
+const isHeavy = p => p.g > 1.5;
+function available() { return POOL.filter(p => !SAVE.colonies.includes(p.name)); }
+function prepareGame() {
+  const av = shuffle(available());
+  const great = av.filter(p => score(p) === 6), okay = av.filter(p => score(p) === 5), bad = av.filter(p => score(p) <= 4);
+  if (!great.length || av.length < 5) { G = null; return false; }
+  const pick = [great[0], ...okay.slice(0, 2), ...bad.slice(0, 2)];
+  for (const p of av) if (pick.length < 5 && !pick.includes(p)) pick.push(p);
+  const planets = shuffle(pick).map(p => ({ ...p, dist: 1 + Math.floor(Math.random() * 3) }));
+  planets.forEach(p => { if (score(p) === 6 && p.dist === 1) p.dist = rand([2, 3]); });
+  G = { planets, fuel: START_FUEL, days: START_DAYS, at: null, visited: new Set(), probed: new Set(), hintIdx: 0, hint: '' };
+  return true;
+}
+function newGame() { if (prepareGame()) mapScreen(); else galaxyDone(); }
+function galaxyDone() {
+  state = 'end'; hud.classList.add('hidden'); captionEl.classList.add('hidden');
+  showCard(`<h1>You explored the whole galaxy!</h1>
+    <p>Your space cats have colonies on: <b>${SAVE.colonies.join(', ')}</b>. There are no perfect planets left to find here.</p>
+    <p>Want to fly to a brand-new galaxy? All the planets will be new again.</p>
+    <button class="btn" onclick="resetGalaxy()">Start a new galaxy</button>`);
+}
+function resetGalaxy() { SAVE.colonies = []; persist(); newGame(); }
+function tripCost(i) {
+  const p = G.planets[i];
+  const leavingHeavy = G.at !== null && isHeavy(G.planets[G.at]) ? 1 : 0;
+  return { fuel: p.dist + leavingHeavy, days: DAYS_FOR[p.dist] + (p.star === 'black' ? 8 : 0), leavingHeavy };
+}
+function canAfford(i) { const c = tripCost(i); return G.fuel >= c.fuel && G.days >= c.days; }
+function known(p, i, key) {
+  if (G.visited.has(i)) return true;
+  if (key === 'gravity') return true;   // the telescope measures gravity
+  if (key === 'safe') return false;     // only known when you land!
+  return G.probed.has(i);               // a probe checks ground, water, air, temperature
+}
+
+// ---------- Screens ----------
+function showCard(html, wide = false) { overlay.innerHTML = `<div class="card${wide ? ' wide' : ''}">${html}</div>`; overlay.classList.remove('hidden'); overlay.scrollTop = 0; }
+function hideCard() { overlay.classList.add('hidden'); }
+function toast(msg, ms = 1800) { toastEl.textContent = msg; toastEl.style.opacity = 1; clearTimeout(toast.t); toast.t = setTimeout(() => toastEl.style.opacity = 0, ms); }
+function dotStyle(p) { return `background: radial-gradient(circle at 35% 35%, ${p.c1}, ${p.c2});`; }
+function resPills() { return `<div class="resbar"><span class="pill">⛽ Fuel: ${G.fuel}</span><span class="pill">📅 Days: ${G.days}</span><span class="pill">📍 ${G.at === null ? 'Moon Base' : G.planets[G.at].name}</span></div>`; }
+
+function checklistHTML(p, i, revealAll = false) {
+  return `<div class="checks">${CHECKS.map(([k, label]) => {
+    if (!revealAll && !known(p, i, k)) return `<div class="chk">? ${label}${k === 'safe' ? '<br><small>Land to find out</small>' : ''}</div>`;
+    const [ok, txt] = p.checks[k];
+    return `<div class="chk ${ok ? 'yes' : 'no'}">${ok ? '✓' : '✗'} ${label}<br><small>${txt}</small></div>`;
+  }).join('')}</div>`;
+}
+function factRow(label, val, why) { return `<details><summary><span><b>${label}:</b> ${val}</span><span class="q" aria-label="Why?">?</span></summary><p>${why}</p></details>`; }
+function factsHTML(p) {
+  return `<div class="facts">
+    ${factRow('Gravity', p.g + '× Earth', gravWhy(p.g))}
+    ${factRow('Star', STARS[p.star].name, STARS[p.star].why)}
+    ${factRow('Distance from star', p.star === 'black' ? 'Circles a black hole' : DIST[p.sd], DIST_WHY)}
+    ${factRow('Day', p.day, DAY_WHY[p.dayType || 'normal'])}
+    ${factRow('Size', SIZE[p.size][0], SIZE[p.size][1])}
+    ${factRow('Telescope sees', p.note, NOTE_WHY)}
+  </div>`;
+}
+
+function titleScreen() {
+  state = 'title'; hud.classList.add('hidden'); captionEl.classList.add('hidden');
+  const col = SAVE.colonies.length ? `<p class="fun">🏠 Colonies built so far: <b>${SAVE.colonies.join(', ')}</b>. Those planets are taken, so every mission has new planets to explore!</p>` : '';
+  showCard(`
+    <h1>Captain Whiskers: Moon Base Mission</h1>
+    <p>The space cats need a new home, and only you can help Captain Whiskers find it!</p>${col}
+    <button class="btn" onclick="startStory()">▶ Watch the story</button>
+    <button class="btn alt" onclick="openRulesFromTitle()">How to play</button>
+    <button class="btn alt" onclick="newGame()">Skip to the mission</button>
+    <button class="btn alt" onclick="discoveryLog()">🔭 Discovery log (${SAVE.found.length}/${DISCOVERIES.length})</button>
+    ${SAVE.colonies.length ? '<button class="btn alt" onclick="resetGalaxy()">Start a new galaxy (clear colonies)</button>' : ''}`);
+}
+function openRulesFromTitle() { if (prepareGame()) showRules(0); else galaxyDone(); }
+
+// ---------- Animated story ----------
+const STORY = [
+  'Once upon a time, the space cats lived on Earth. They LOVED exploring, so they built a rocket...',
+  '...and flew all the way to the Moon! The trip takes about 3 days. There they built Moon Base Meow.',
+  'The Moon is fun: cats can jump 6 times higher than on Earth! But there is no air to breathe, and one Moon day lasts about 2 weeks. The cats must stay inside their domes.',
+  'Then kittens were born. Lots and LOTS of kittens! Soon the domes were way too crowded.',
+  'Captain Whiskers looked through the big telescope and spotted 5 planets. Some might be wonderful. Some might be full of surprises!',
+  'But the rocket only has enough fuel and days to visit about 3 of them. Captain Whiskers needs YOUR help to choose wisely!',
+];
+let storyIdx = 0;
+function startStory() { if (!prepareGame()) return galaxyDone(); hideCard(); state = 'story'; storyIdx = 0; animT = 0; showCaption(); }
+function showCaption() {
+  captionEl.classList.remove('hidden');
+  document.getElementById('capStep').textContent = `Story ${storyIdx + 1} of ${STORY.length}`;
+  document.getElementById('capText').textContent = STORY[storyIdx];
+  document.getElementById('capBack').disabled = storyIdx === 0;
+  document.getElementById('capNext').textContent = storyIdx === STORY.length - 1 ? 'Learn how to play' : 'Next';
+}
+function storyNav(d) {
+  const n = storyIdx + d;
+  if (n < 0) return;
+  if (n >= STORY.length) return endStory();
+  storyIdx = n; animT = 0; showCaption();
+}
+function endStory() { captionEl.classList.add('hidden'); state = 'rules'; showRules(0); }
+
+// ---------- How to play (with pictures) ----------
+let PICS = {};
+function drawStarIcon(col) { ctx.fillStyle = col + '55'; ctx.beginPath(); ctx.arc(32, 32, 26, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = col; ctx.beginPath(); ctx.arc(32, 32, 15, 0, Math.PI * 2); ctx.fill(); }
+function makePics() {
+  const icon = (fn) => { const c = document.createElement('canvas'); c.width = 128; c.height = 128; const old = ctx; ctx = c.getContext('2d'); ctx.scale(2, 2); fn(); ctx = old; return c.toDataURL(); };
+  const rockPts = Array.from({ length: 9 }, (_, k) => ({ a: k / 9 * Math.PI * 2, d: 20 * (0.8 + (k % 3) * 0.1) }));
+  const byName = n => POOL.find(p => p.name === n);
+  PICS = {
+    cat: icon(() => drawCat(32, 26, 18, { flame: true })),
+    rock: icon(() => drawRock({ x: 32, y: 32, r: 18, rot: 0.3, pts: rockPts })),
+    alien: icon(() => drawAlien({ x: 32, y: 38, r: 16 })),
+    comet: icon(() => drawComet({ x: 46, y: 46, vx: 70, vy: 70, r: 10 })),
+    fish: icon(() => drawFish({ x: 30, y: 32, r: 14 })),
+    can: icon(() => drawCan({ x: 32, y: 34, r: 14 })),
+    mimic: icon(() => drawMimic({ x: 32, y: 34, r: 14, ph: 0.5 })),
+    disc: icon(() => drawDisc({ x: 32, y: 32, r: 16, ph: 0 })),
+    worm: icon(() => drawWorm({ x: 32, y: 32, r: 26, ph: 0 })),
+    bh: icon(() => drawBH({ x: 32, y: 32, r: 14, noPull: true })),
+    probe: icon(() => drawProbe(32, 32, 1)),
+    good: icon(() => drawPlanet(POOL[0], 32, 32, 24)),
+    hot: icon(() => drawPlanet(byName('Blaze'), 32, 32, 24)),
+    giant: icon(() => drawPlanet(byName('Puffy'), 32, 32, 16)),
+    heavy: icon(() => drawPlanet(byName('Chonk'), 32, 32, 26)),
+    redStar: icon(() => drawStarIcon('#ff6a4a')),
+    yellowStar: icon(() => drawStarIcon('#ffd84a')),
+    blueStar: icon(() => drawStarIcon('#6ab8ff')),
+  };
+}
+const fig = (k, label) => `<figure><img src="${PICS[k]}" alt="">${label}</figure>`;
+const RULES = [
+  () => `<h2>1. Read the telescope clues</h2>
+    <div class="pics">${fig('good', 'A planet')}</div>
+    <p>Every planet has 6 clues: gravity, star, distance from its star, day length, size, and what the telescope sees. Tap the <b>?</b> next to a clue to learn why it matters.</p>
+    <p>🌡️ <b>Temperature is tricky!</b> It depends on the star AND the distance:</p>
+    <div class="pics">${fig('redStar', 'Dim red star: very close is comfy')}${fig('yellowStar', 'Yellow or orange: medium is comfy')}${fig('blueStar', 'Super-hot blue: very far is comfy')}</div>
+    <div class="checks"><div class="chk yes">✓ Good</div><div class="chk no">✗ A problem</div><div class="chk">? Don't know yet</div></div>`,
+  () => `<h2>2. Watch your supplies</h2>
+    <div class="pics">${fig('can', 'Fuel')}${fig('probe', 'Probe')}</div>
+    <p>You have ⛽ <b>fuel</b> and 📅 <b>days</b>. Every trip uses some of both, and far planets cost more. There's only enough for about 3 trips out of 5 planets!</p>
+    <p>A <b>robot probe</b> costs 1 fuel. It checks a planet's ground, water, air, and temperature for you.</p>
+    <p>⚠️ <b>"Safe and calm"</b> is only known when you land. Some planets hide surprises!</p>`,
+  () => `<h2>3. Fly through space!</h2>
+    <div class="pics">${fig('cat', 'You')}${fig('rock', 'Dodge')}${fig('alien', 'Dodge')}${fig('comet', 'Dodge, fast!')}${fig('fish', 'Shield')}${fig('can', '+1 fuel')}</div>
+    <p>Each trip has zones: open space, then an <b>asteroid belt</b>, then a <b>comet zone</b>.</p>
+    <ul><li>Dodge rocks, grumpy aliens, and speedy comets.</li><li>Fish refill your shield. Fuel cans give +1 fuel.</li><li>If your shield is empty, a bump costs 1 day.</li></ul>
+    <p class="note">Phone: drag your finger. Laptop: move the mouse or use the arrow keys.</p>`,
+  () => `<h2>4. Things along the way</h2>
+    <div class="pics">${fig('disc', 'Discovery')}${fig('worm', 'Wormhole')}${fig('bh', 'Black hole')}${fig('mimic', 'Tricky can!')}</div>
+    <ul>
+      <li>✦ <b>Discoveries:</b> grab the glowing stars to learn real space facts. Collect them all in your Discovery log!</li>
+      <li>🌀 <b>Wormholes:</b> usually a shortcut... but sometimes they go the wrong way!</li>
+      <li>⚫ <b>Mini black holes:</b> they pull you in. Touching one costs 1 day.</li>
+      <li>👀 <b>Tricky fuel cans:</b> if a can has eyes, it's a grumpy alien in disguise!</li>
+    </ul>`,
+  () => `<h2>5. Land and decide</h2>
+    <div class="pics">${fig('good', 'Land!')}</div>
+    <p>When you land, you see everything. Then choose: <b>Build the colony here!</b> or fly to another planet.</p>
+    <p>⭐⭐⭐ perfect home. ⭐⭐ good home. ⭐ the colony barely made it. A bad planet means the rescue ship comes.</p>
+    <p>🏠 Once you build a colony, that planet is taken. Next mission, Captain Whiskers explores <b>new</b> planets!</p>`,
+  () => `<h2>Captain's tips</h2>
+    <div class="pics">${fig('good', 'Just right')}${fig('hot', 'Too hot')}${fig('heavy', 'Heavy')}${fig('giant', 'Giant')}</div>
+    <ul class="tips">
+      <li>🌡️ Match the star with the distance to guess the temperature.</li>
+      <li>🏋️ Gravity over 1.5× Earth squishes cats and costs extra fuel to leave.</li>
+      <li>🎈 Giant planets are usually made of gas. Is there any ground?</li>
+      <li>🌪️ Super-short days mean super-fast spinning, and that can mean storms.</li>
+      <li>🤔 "Looks just like Earth" doesn't always mean it's safe!</li>
+      <li>🤖 Not sure? A probe costs only 1 fuel.</li>
+      <li>💡 Stuck? Tap <b>Hint</b> on the star map anytime.</li>
+    </ul>`,
+];
+function showRules(i) {
+  state = 'rules'; hud.classList.add('hidden');
+  if (!PICS.cat) makePics();
+  const last = i === RULES.length - 1;
+  const doneLabel = G && (G.at !== null || G.visited.size || G.probed.size) ? 'Back to the star map' : 'Start the mission!';
+  showCard(`<div class="steps">How to play: ${i + 1} of ${RULES.length}</div>${RULES[i]()}
+    <div class="row">
+      <button class="btn alt" onclick="showRules(${i - 1})" ${i === 0 ? 'disabled' : ''}>Back</button>
+      <button class="btn" onclick="${last ? 'mapScreen()' : `showRules(${i + 1})`}">${last ? doneLabel : 'Next'}</button>
+    </div>
+    ${last ? '' : `<button class="btn alt" onclick="mapScreen()" style="font-size:15px;padding:8px">Skip to the star map</button>`}`);
+}
+
+function discoveryLog() {
+  const back = G && state !== 'title' ? 'mapScreen()' : 'titleScreen()';
+  showCard(`<h2>🔭 Discovery log</h2>
+    <p>You found <b>${SAVE.found.length} of ${DISCOVERIES.length}</b> space discoveries. Grab the glowing ✦ stars while flying to find more!</p>
+    ${DISCOVERIES.map(d => SAVE.found.includes(d.id) ? `<div class="hintbox"><b>${d.title}</b><br>${d.fact}</div>` : `<div class="chk" style="margin-bottom:8px">??? Not found yet</div>`).join('')}
+    <button class="btn" onclick="${back}">Back</button>`);
+}
+
+// ---------- Hints ----------
+function tempHint(p) {
+  if (p.star === 'black') return `${p.name} circles a black hole. There's almost no warm sunlight there, so it's probably freezing.`;
+  const s = { red: 'a dim red star', blue: 'a super-hot blue star', two: 'two suns', orange: 'an orange star', yellow: 'a star like our Sun' }[p.star];
+  const g = tempGuess(p);
+  return `${p.name} is "${DIST[p.sd].toLowerCase()}" to ${s}. So it's probably ${g === 'right' ? 'just right: not too hot, not too cold' : g === 'hot' ? 'too hot' : 'too cold'}.`;
+}
+function buildHints() {
+  const out = [];
+  if (G.at !== null) {
+    const p = G.planets[G.at], n = score(p);
+    if (n === 6) out.push(`${p.name} checks every box! Building the colony here would be a great choice.`);
+    else if (n === 5) out.push(`${p.name} is a good home with one problem. If you have enough fuel and days, you could look for a better planet, or build here to be safe.`);
+    else out.push(`${p.name} has lots of ✗ marks. Try to fly to another planet if you can.`);
+  }
+  G.planets.forEach((p, i) => {
+    if (i === G.at || G.visited.has(i)) return;
+    const bad = CHECKS.filter(([k]) => known(p, i, k) && !p.checks[k][0]).map(([, l]) => l.toLowerCase());
+    if (bad.length) out.push(`${p.name} has a ✗ for ${bad.join(' and ')}. That's a problem for a colony.`);
+    if (!G.probed.has(i)) out.push(tempHint(p));
+    if (p.size === 'giant') out.push(`${p.name} is a giant planet. Giant planets are usually made of gas. Will there be any ground to stand on?`);
+    if (p.dayType === 'fast') out.push(`A day on ${p.name} is only ${p.day}! Spinning that fast can stir up wild storms.`);
+    if (isHeavy(p)) out.push(`${p.name} has heavy gravity (${p.g}× Earth). That's squishy for cats, and it costs 1 extra fuel to leave.`);
+  });
+  out.push('Even a planet that looks perfect can hide surprises. "Safe and calm" is only known when you land!');
+  const unprobed = G.planets.some((p, i) => i !== G.at && !G.probed.has(i) && !G.visited.has(i));
+  if (unprobed && G.fuel >= 1) out.push('Not sure? A robot probe costs just 1 fuel and checks the ground, water, air, and temperature.');
+  out.push(`You have ⛽ ${G.fuel} fuel and 📅 ${G.days} days. Before you fly, check that you'll still have enough to reach the planet you like best.`);
+  return out;
+}
+function showHint() { const h = buildHints(); G.hint = h[G.hintIdx % h.length]; G.hintIdx++; mapScreen(); }
+
+function mapScreen() {
+  if (!G) return newGame();
+  state = 'map'; hud.classList.add('hidden'); captionEl.classList.add('hidden');
+  const cards = G.planets.map((p, i) => {
+    const here = G.at === i;
+    const c = tripCost(i);
+    const tags = (G.visited.has(i) ? '<span class="tag">Visited</span>' : '') + (G.probed.has(i) && !G.visited.has(i) ? '<span class="tag">Probed</span>' : '') + (here ? '<span class="tag">You are here</span>' : '');
+    let actions = '';
+    if (here) {
+      actions = `<button class="btn" onclick="buildColony(${i})">Build the colony here</button>`;
+    } else {
+      const afford = canAfford(i);
+      actions = `<div class="cost">Trip: ⛽ ${c.fuel} fuel${c.leavingHeavy ? ' (includes +1 to take off from heavy gravity)' : ''}, 📅 ${c.days} days</div>
+        <button class="btn" onclick="startFlight(${i})" ${afford ? '' : 'disabled'}>${afford ? 'Fly here' : 'Not enough fuel or days'}</button>`;
+      if (!G.probed.has(i) && !G.visited.has(i)) actions += `<button class="btn alt" onclick="probe(${i})" ${G.fuel >= 1 ? '' : 'disabled'}>Send robot probe (⛽ 1)</button>`;
+    }
+    return `<div class="pcard${here ? ' here' : ''}">
+      <div class="phead"><span class="dot" style="${dotStyle(p)}"></span><h3>${p.name}${tags}</h3></div>
+      ${factsHTML(p)}
+      <b>Colony checklist</b>
+      ${checklistHTML(p, i)}
+      ${actions}</div>`;
+  }).join('');
+  const others = G.planets.some((p, i) => i !== G.at && canAfford(i));
+  const stuck = !others ? `<p class="fun">No fuel or days left for another trip. ${G.at !== null ? 'Build the colony here, or ' : ''}call the rescue ship.</p><button class="btn alt" onclick="rescue()">Call the rescue ship</button>` : '';
+  const hintBox = G.hint ? `<div class="hintbox">💡 <b>Captain's hint:</b> ${G.hint}</div>` : '';
+  showCard(`<h2>Star map</h2>${resPills()}
+    <div class="toolbar"><button class="btn alt" onclick="showHint()">💡 Hint</button><button class="btn alt" onclick="showRules(0)">📖 How to play</button><button class="btn alt" onclick="discoveryLog()">🔭 Discoveries (${SAVE.found.length}/${DISCOVERIES.length})</button></div>
+    ${hintBox}${stuck}<div class="planets">${cards}</div>`, true);
+}
+
+function probe(i) {
+  G.hint = ''; G.fuel -= 1; G.probed.add(i);
+  mapScreen();
+  toast('🤖 The probe checked the ground, water, air, and temperature on ' + G.planets[i].name + '!', 2500);
+}
+
+// ---------- Flying ----------
+const ZONES = [[0, 'Open space. Here we go!'], [0.3, '🪨 Asteroid belt! Watch out!'], [0.55, '☄️ Comet zone! Comets are FAST!'], [0.8, 'Almost there!']];
+const SPAWN_GAP = [0.8, 0.33, 0.85, 0.6];
+function startFlight(i) {
+  const c = tripCost(i);
+  G.fuel -= c.fuel; G.days -= c.days; G.hint = '';
+  dest = i;
+  hideCard();
+  state = 'fly';
+  cat = { x: W / 2, y: H * 0.75 };
+  obs = []; shield = 3; rechargeT = 0; invuln = 0; progress = 0; spawnT = 1; fishT = 6; zone = -1;
+  specials = [
+    { at: 0.12, t: 'disc' }, { at: 0.22, t: 'can' }, { at: 0.34, t: rand(['worm', 'mimic']) }, { at: 0.45, t: 'disc' },
+    { at: 0.52, t: 'bh' }, { at: 0.62, t: 'can' }, { at: 0.7, t: rand(['worm', 'mimic']) }, { at: 0.78, t: 'disc' }, { at: 0.88, t: 'mimic' },
+  ];
+  document.getElementById('tripLabel').textContent = 'To ' + G.planets[i].name;
+  hud.classList.remove('hidden');
+  updateHud();
+}
+function updateHud() {
+  document.getElementById('tripFill').style.width = (progress * 100) + '%';
+  document.getElementById('res').textContent = `⛽ ${G.fuel}   📅 ${G.days}`;
+  document.querySelectorAll('#shield i').forEach((el, i) => el.classList.toggle('on', i < shield));
+}
+
+function landedScreen() {
+  state = 'landed'; hud.classList.add('hidden');
+  const i = dest, p = G.planets[i];
+  G.at = i; G.visited.add(i);
+  showCard(`
+    <h2>Landed on ${p.name}</h2>
+    ${resPills()}
+    <p>${p.found}</p>
+    <b>Colony checklist: ${score(p)} of 6</b>
+    ${checklistHTML(p, i, true)}
+    <p class="fun"><b>Real science:</b> ${p.science}</p>
+    <button class="btn" onclick="buildColony(${i})">Build the colony here!</button>
+    <button class="btn alt" onclick="mapScreen()">Back to the star map</button>`);
+}
+
+function buildColony(i) {
+  state = 'end';
+  const p = G.planets[i], n = score(p);
+  const best = G.planets.reduce((a, q) => score(q) > score(a) ? q : a);
+  const missing = CHECKS.filter(([k]) => !p.checks[k][0]).map(([k, l]) => `${l.toLowerCase()} (${p.checks[k][1].toLowerCase()})`);
+  const again = `<button class="btn" onclick="newGame()">Next mission: new planets!</button><button class="btn alt" onclick="titleScreen()">Back to the start</button>`;
+  const leftover = `<p class="note">Supplies left: ⛽ ${G.fuel} fuel and 📅 ${G.days} days.</p>`;
+  if (n >= 4 && !SAVE.colonies.includes(p.name)) { SAVE.colonies.push(p.name); persist(); }
+  const taken = `<p class="fun">🏠 ${p.name} is now a space cat colony, so it's taken. Next mission, Captain Whiskers will explore brand-new planets!</p>`;
+  const bestLine = best !== p ? `<p>The best planet this time was <b>${best.name}</b>. Can you find the perfect home next time?</p>` : '';
+  if (n === 6) {
+    showCard(`<div class="stars">⭐⭐⭐</div><h1>A perfect home!</h1>
+      <p>The space cats built their colony on ${p.name}. It checks every box on the list. Great thinking, Captain!</p>${taken}${leftover}${again}`);
+  } else if (n === 5) {
+    showCard(`<div class="stars">⭐⭐</div><h1>A good home, with one problem</h1>
+      <p>The space cats built their colony on ${p.name}. It works, but it's missing: ${missing.join(', ')}.</p>${bestLine}${taken}${leftover}${again}`);
+  } else if (n === 4) {
+    showCard(`<div class="stars">⭐</div><h1>The colony made it... barely!</h1>
+      <p>Life on ${p.name} is tough. It's missing: ${missing.join(', ')}.</p>${bestLine}${taken}${leftover}${again}`);
+  } else {
+    showCard(`<h1>Uh-oh! Rescue ship!</h1>
+      <p>The colony couldn't survive on ${p.name}. It was missing: ${missing.join(', ')}. A rescue ship carried everyone safely back to the Moon Base.</p>
+      ${bestLine}<p>Try again. You're learning what makes a good home!</p>${again}`);
+  }
+}
+
+function rescue() {
+  state = 'end';
+  const best = G.planets.reduce((a, q) => score(q) > score(a) ? q : a);
+  showCard(`<h1>Rescue ship to the rescue!</h1>
+    <p>Captain Whiskers ran out of supplies, so a rescue ship brought him safely back to the Moon Base.</p>
+    <p>The best planet was <b>${best.name}</b>. Tip: read the telescope clues first, and use a probe when you're not sure.</p>
+    <button class="btn" onclick="newGame()">Try again with new planets</button>`);
+}
+
+function spawnObstacle(z) {
+  const speed = 170 + Math.random() * 70;
+  const kind = z === 1 ? (Math.random() < 0.9 ? 'rock' : 'alien') : z === 2 ? (Math.random() < 0.6 ? 'comet' : 'alien') : z === 3 ? rand(['rock', 'alien', 'comet']) : (Math.random() < 0.7 ? 'rock' : 'alien');
+  if (kind === 'alien') {
+    obs.push({ type: 'alien', bx: 30 + Math.random() * (W - 60), x: 0, y: -30, r: 18, vy: speed * 0.8, ph: Math.random() * 6, amp: 30 + Math.random() * 40 });
+  } else if (kind === 'comet') {
+    const left = Math.random() < 0.5;
+    obs.push({ type: 'comet', x: left ? -20 : W + 20, y: Math.random() * H * 0.3, vx: (left ? 1 : -1) * (110 + Math.random() * 120), vy: 250 + Math.random() * 80, r: 12, ph: 0 });
+  } else {
+    const r = z === 1 ? 9 + Math.random() * 10 : 14 + Math.random() * 18;
+    const pts = Array.from({ length: 9 }, (_, k) => ({ a: k / 9 * Math.PI * 2, d: r * (0.75 + Math.random() * 0.3) }));
+    obs.push({ type: 'rock', x: Math.random() * W, y: -r, r: r * 0.85, vy: speed, rot: 0, vr: (Math.random() - 0.5) * 2, pts, ph: 0 });
+  }
+}
+function spawnSpecial(t) {
+  const o = { type: t, x: 40 + Math.random() * (W - 80), y: -30, r: 16, vy: 110, ph: Math.random() * 6 };
+  if (t === 'worm') { o.r = 26; o.vy = 85; }
+  if (t === 'bh') { o.r = 16; o.vy = 65; }
+  obs.push(o);
+}
+function addDiscovery() {
+  const left = DISCOVERIES.filter(d => !SAVE.found.includes(d.id));
+  const d = left.length ? rand(left) : rand(DISCOVERIES);
+  const isNew = !SAVE.found.includes(d.id);
+  if (isNew) { SAVE.found.push(d.id); persist(); }
+  toast(`✦ ${isNew ? 'New discovery' : 'Discovery'}: ${d.title}! ${d.fact}`, 5000);
+}
+function hit(msg) {
+  if (shield > 0) { shield--; rechargeT = 0; invuln = 1; toast(msg); }
+  else { invuln = 1.5; if (G.days > 0) { G.days -= 1; toast('Bonk! Fixing the ship cost 1 day'); } else toast('Bonk!'); }
+}
+
+function update(dt) {
+  const sp = state === 'fly' ? 120 : 20;
+  for (const s of starfield) { s.y += (sp * s.s * dt) / H; if (s.y > 1) { s.y = 0; s.x = Math.random(); } }
+
+  if (state === 'fly') {
+    const size = catSize(), mv = 340;
+    if (keys.arrowleft || keys.a) cat.x -= mv * dt;
+    if (keys.arrowright || keys.d) cat.x += mv * dt;
+    if (keys.arrowup || keys.w) cat.y -= mv * dt;
+    if (keys.arrowdown || keys.s) cat.y += mv * dt;
+    if (pointerTarget) { const k = Math.min(1, dt * 9); cat.x += (pointerTarget.x - cat.x) * k; cat.y += (pointerTarget.y - cat.y) * k; }
+
+    const z = ZONES.reduce((a, [at], k) => progress >= at ? k : a, 0);
+    if (z !== zone) { zone = z; toast(ZONES[z][1], 2200); }
+    spawnT -= dt;
+    if (spawnT <= 0) { spawnObstacle(z); spawnT = SPAWN_GAP[z] * (0.7 + Math.random() * 0.6); }
+    while (specials.length && progress >= specials[0].at) spawnSpecial(specials.shift().t);
+    fishT -= dt;
+    if (fishT <= 0) { obs.push({ type: 'fish', x: 30 + Math.random() * (W - 60), y: -20, r: 14, vy: 130, ph: 0 }); fishT = 6 + Math.random() * 3; }
+
+    for (const o of obs) {
+      o.y += o.vy * dt;
+      if (o.vx) o.x += o.vx * dt;
+      o.ph += dt * (o.type === 'alien' ? 2.5 : 1);
+      if (o.type === 'rock') o.rot += o.vr * dt;
+      if (o.type === 'alien') o.x = o.bx + Math.sin(o.ph) * o.amp;
+      if (o.type === 'bh') { // black holes pull you in
+        const dx = o.x - cat.x, dy = o.y - cat.y, d = Math.hypot(dx, dy);
+        if (d < 170 && d > 1) { const f = (170 - d) / 170 * 170 * dt; cat.x += dx / d * f; cat.y += dy / d * f; }
+      }
+    }
+    cat.x = Math.max(size, Math.min(W - size, cat.x));
+    cat.y = Math.max(H * 0.3, Math.min(H - size * 1.6, cat.y));
+
+    invuln = Math.max(0, invuln - dt);
+    if (shield < 3) { rechargeT += dt; if (rechargeT >= 4) { shield++; rechargeT = 0; } }
+
+    obs = obs.filter(o => {
+      if (Math.hypot(o.x - cat.x, o.y - cat.y) >= o.r + size * 0.7) return o.y < H + 60 && o.x > -100 && o.x < W + 100;
+      switch (o.type) {
+        case 'fish': shield = 3; rechargeT = 0; toast('Yum! Shield full'); return false;
+        case 'can': G.fuel += 1; toast('+1 fuel! ⛽'); return false;
+        case 'disc': addDiscovery(); return false;
+        case 'worm':
+          if (Math.random() < 0.7) { progress = Math.min(0.97, progress + 0.15); toast('🌀 Wormhole shortcut! Zoom!'); }
+          else { progress = Math.max(0, progress - 0.08); toast('🌀 Oops! This wormhole went the wrong way!'); }
+          return false;
+        case 'bh':
+          if (G.days > 0) G.days -= 1;
+          toast('⚫ The black hole slowed down time! -1 day. Black holes pull on everything, even light.', 3500);
+          return false;
+        default:
+          if (invuln > 0) return true;
+          hit(o.type === 'mimic' ? '👀 Tricky! That fuel can was a grumpy alien in disguise!' : o.type === 'alien' ? 'A grumpy alien bumped you!' : o.type === 'comet' ? 'Comet hit! Shield down one' : 'Rock hit! Shield down one');
+          return false;
+      }
+    });
+
+    progress = Math.min(1, progress + dt / FLY_TIME);
+    updateHud();
+    if (progress >= 1) { state = 'arrive'; animT = 0; obs = []; hud.classList.add('hidden'); }
+  } else if (state === 'arrive') {
+    animT += dt;
+    cat.x += (W / 2 - cat.x) * Math.min(1, dt * 3);
+    if (animT >= 2) { state = 'land'; animT = 0; }
+  } else if (state === 'story') {
+    animT += dt;
+  } else if (state === 'land') {
+    animT += dt;
+    if (animT >= 4) landedScreen();
+  }
+}
+
+// ---------- Drawing ----------
+// ---------- Flight objects ----------
+function drawComet(o) {
+  const tx = o.x - o.vx * 0.35, ty = o.y - o.vy * 0.35;
+  const g = ctx.createLinearGradient(tx, ty, o.x, o.y);
+  g.addColorStop(0, 'rgba(160, 220, 255, 0)'); g.addColorStop(1, 'rgba(210, 240, 255, 0.9)');
+  ctx.strokeStyle = g; ctx.lineWidth = 10; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(o.x, o.y); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(o.x, o.y, o.r * 0.8, 0, Math.PI * 2); ctx.fill();
+}
+function drawWorm(o) {
+  ctx.save(); ctx.translate(o.x, o.y);
+  ctx.fillStyle = 'rgba(120, 60, 200, 0.35)'; ctx.beginPath(); ctx.arc(0, 0, o.r * 1.1, 0, Math.PI * 2); ctx.fill();
+  for (let k = 0; k < 5; k++) {
+    ctx.strokeStyle = `hsla(${270 + k * 15}, 80%, ${60 + k * 5}%, 0.9)`; ctx.lineWidth = 3;
+    const a = o.ph * 3 + k * 1.2;
+    ctx.beginPath(); ctx.arc(0, 0, o.r * (1 - k * 0.17), a, a + 4.2); ctx.stroke();
+  }
+  ctx.fillStyle = '#1a0a33'; ctx.beginPath(); ctx.arc(0, 0, o.r * 0.18, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+function drawBH(o) {
+  if (!o.noPull) { ctx.setLineDash([4, 8]); ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(o.x, o.y, 170, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
+  ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(-0.3);
+  ctx.strokeStyle = 'rgba(255, 170, 70, 0.9)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(0, 0, o.r * 2, o.r * 0.6, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 200, 120, 0.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 2, 0, Math.PI * 2); ctx.stroke();
+}
+function drawMimic(o) {
+  drawCan(o);
+  if (Math.sin(o.ph * 3) > -0.3) { // blinking eyes: the clue that it's a trick!
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(o.x - 5, o.y - 1, 4, 0, Math.PI * 2); ctx.arc(o.x + 5, o.y - 1, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2a1f47'; ctx.beginPath(); ctx.arc(o.x - 4, o.y, 2, 0, Math.PI * 2); ctx.arc(o.x + 6, o.y, 2, 0, Math.PI * 2); ctx.fill();
+  }
+}
+function drawDisc(o) {
+  ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.ph);
+  ctx.fillStyle = 'rgba(255, 240, 150, 0.3)'; ctx.beginPath(); ctx.arc(0, 0, o.r * 1.8, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ffe066'; ctx.beginPath();
+  for (let k = 0; k < 8; k++) { const r = k % 2 ? o.r * 0.4 : o.r; const a = k * Math.PI / 4; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+// ---------- Creatures for landing scenes ----------
+function drawCreature(type, x, y, t, flip = 1, k = 1) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(flip * k, k);
+  const step = Math.sin(t * 10) * 6;
+  if (type === 'dino') {
+    ctx.fillStyle = '#2f6b35';
+    ctx.beginPath(); ctx.ellipse(0, -60, 55, 30, -0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-45, -60); ctx.lineTo(-120, -40); ctx.lineTo(-40, -42); ctx.fill();
+    ctx.fillRect(18, -98, 24, 34);
+    ctx.beginPath(); ctx.roundRect(28, -122, 62, 36, 12); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(72, -110, 6, 0, Math.PI * 2); ctx.fill();
+    for (let j = 0; j < 4; j++) ctx.fillRect(54 + j * 9, -88, 4, 6);
+    ctx.fillStyle = '#2f6b35'; ctx.fillRect(-18 + step, -38, 16, 38); ctx.fillRect(10 - step, -38, 16, 38); ctx.fillRect(40, -72, 14, 5);
+  } else if (type === 'mammoth') {
+    ctx.fillStyle = '#7a4a2a';
+    [-28, -12, 12, 26].forEach((lx, j) => ctx.fillRect(lx + (j % 2 ? step : -step) * 0.4, -30, 12, 30));
+    ctx.beginPath(); ctx.ellipse(0, -48, 44, 30, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(40, -58, 20, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#7a4a2a'; ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(54, -50); ctx.quadraticCurveTo(66, -30, 56, -12); ctx.stroke();
+    ctx.strokeStyle = '#fff8e8'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(48, -42); ctx.quadraticCurveTo(70, -30, 76, -46); ctx.stroke();
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(46, -64, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#5a3418'; ctx.lineWidth = 2; for (let j = -30; j < 30; j += 10) { ctx.beginPath(); ctx.moveTo(j, -30); ctx.lineTo(j + 3, -20); ctx.stroke(); }
+  } else if (type === 'dodo') {
+    ctx.fillStyle = '#e0b030'; ctx.fillRect(-6 + step * 0.4, -12, 4, 12); ctx.fillRect(4 - step * 0.4, -12, 4, 12);
+    ctx.fillStyle = '#8a8a9a'; ctx.beginPath(); ctx.ellipse(0, -26, 20, 17, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-20, -32, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#8a8a9a'; ctx.beginPath(); ctx.arc(14, -44, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c9c46a'; ctx.beginPath(); ctx.moveTo(20, -48); ctx.quadraticCurveTo(38, -46, 34, -36); ctx.lineTo(22, -40); ctx.fill();
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(16, -47, 2, 0, Math.PI * 2); ctx.fill();
+  } else if (type === 'unicorn') {
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+    [-22, -10, 12, 24].forEach((lx, j) => { ctx.beginPath(); ctx.moveTo(lx, -34); ctx.lineTo(lx + (j % 2 ? step : -step), 0); ctx.stroke(); });
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(0, -42, 34, 17, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 12; ctx.beginPath(); ctx.moveTo(22, -48); ctx.lineTo(34, -66); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(42, -70, 13, 8, 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffd24a'; ctx.beginPath(); ctx.moveTo(38, -76); ctx.lineTo(45, -77); ctx.lineTo(50, -98); ctx.fill();
+    ['#ff6f91', '#ffb347', '#7be07b', '#6fb8ff'].forEach((c, j) => { ctx.strokeStyle = c; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(26 - j * 2, -52 - j * 4); ctx.lineTo(18 - j * 3, -46 - j * 4); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-34, -44 + j * 3); ctx.quadraticCurveTo(-50, -40 + j * 3, -52, -20 + j * 3); ctx.stroke(); });
+    ctx.fillStyle = '#2a1f47'; ctx.beginPath(); ctx.arc(46, -72, 2, 0, Math.PI * 2); ctx.fill();
+  } else if (type === 'trilobite') {
+    ctx.fillStyle = '#8a7a6a'; ctx.beginPath(); ctx.ellipse(0, -8, 16, 10, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#6a5a4a'; ctx.beginPath(); ctx.arc(14, -8, 8, -Math.PI / 2, Math.PI / 2); ctx.fill();
+    ctx.strokeStyle = '#5a4a3a'; ctx.lineWidth = 1.5; for (let j = -10; j <= 8; j += 4) { ctx.beginPath(); ctx.moveTo(j, -17); ctx.lineTo(j, 1); ctx.stroke(); }
+    ctx.strokeStyle = '#6a5a4a'; for (let j = -10; j <= 8; j += 6) { ctx.beginPath(); ctx.moveTo(j, 1); ctx.lineTo(j + step * 0.3, 5); ctx.stroke(); }
+  } else if (type === 'dragonfly') {
+    const flap = Math.sin(t * 40) * 0.4;
+    ctx.fillStyle = 'rgba(200, 240, 255, 0.55)';
+    for (const [wx, s] of [[-2, 1], [6, 1], [-2, -1], [6, -1]]) { ctx.save(); ctx.translate(wx, 0); ctx.rotate(s * (0.5 + flap)); ctx.beginPath(); ctx.ellipse(0, -s * 16, 7, 18, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+    ctx.strokeStyle = '#1f8a8a'; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-36, 0); ctx.lineTo(18, 0); ctx.stroke();
+    ctx.fillStyle = '#2fb0b0'; ctx.beginPath(); ctx.arc(22, 0, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a3a3a'; ctx.beginPath(); ctx.arc(25, -3, 3, 0, Math.PI * 2); ctx.arc(25, 3, 3, 0, Math.PI * 2); ctx.fill();
+  } else if (type === 'jelly') {
+    ctx.fillStyle = 'rgba(255, 150, 220, 0.6)'; ctx.beginPath(); ctx.arc(0, 0, 22, Math.PI, 0); ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 180, 230, 0.8)'; ctx.lineWidth = 2;
+    for (let j = -15; j <= 15; j += 7.5) { ctx.beginPath(); ctx.moveTo(j, 0); for (let s = 1; s <= 5; s++) ctx.lineTo(j + Math.sin(t * 4 + s + j) * 4, s * 8); ctx.stroke(); }
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-6, -8, 2.5, 0, Math.PI * 2); ctx.arc(6, -8, 2.5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+function twinkles(t) {
+  for (let k = 0; k < 16; k++) {
+    const x = (k * 97) % W, y = (k * 61) % (H * 0.7), s = 3 + 3 * Math.abs(Math.sin(t * 3 + k));
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; ctx.fillRect(x - s, y - 1, s * 2, 2); ctx.fillRect(x - 1, y - s, 2, s * 2);
+  }
+}
+
+function drawPlanet(p, x, y, r) {
+  if (p.look === 'rings') {
+    ctx.save(); ctx.translate(x, y); ctx.scale(1, 0.28);
+    ctx.strokeStyle = 'rgba(230, 210, 160, 0.8)'; ctx.lineWidth = r * 0.35;
+    ctx.beginPath(); ctx.arc(0, 0, r * 1.65, Math.PI, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.35, r * 0.1, x, y, r);
+  g.addColorStop(0, p.c1); g.addColorStop(1, p.c2);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.clip();
+  if (p.look === 'spots') { ctx.fillStyle = 'rgba(255, 240, 250, 0.7)'; for (const [dx, dy, s] of [[-0.3, -0.2, 0.18], [0.3, 0.1, 0.14], [-0.1, 0.4, 0.12], [0.35, -0.4, 0.1]]) { ctx.beginPath(); ctx.arc(x + dx * r, y + dy * r, s * r, 0, Math.PI * 2); ctx.fill(); } }
+  if (p.look === 'disco') { const hues = [320, 200, 50, 140]; hues.forEach((h, k) => { ctx.fillStyle = `hsla(${(h + performance.now() / 20) % 360}, 90%, 65%, 0.45)`; ctx.fillRect(x - r, y - r + k * r * 0.5, r * 2, r * 0.25); }); }
+  if (p.look === 'snow') { ctx.fillStyle = 'rgba(255,255,255,0.85)'; for (const [dx, dy, s] of [[-0.3, -0.3, 0.3], [0.3, 0.2, 0.28], [-0.1, 0.45, 0.2]]) { ctx.beginPath(); ctx.arc(x + dx * r, y + dy * r, s * r, 0, Math.PI * 2); ctx.fill(); } }
+  if (p.look === 'clouds') { ctx.fillStyle = 'rgba(255,255,255,0.6)'; for (let k = -2; k <= 2; k++) ctx.fillRect(x - r, y + k * r * 0.38 - r * 0.08, r * 2, r * 0.16); }
+  if (p.look === 'sparkle') { ctx.fillStyle = '#fff'; for (let k = 0; k < 5; k++) { const a = k * 1.3 + performance.now() / 900, s = 1 + Math.abs(Math.sin(performance.now() / 300 + k)) * r * 0.08; ctx.fillRect(x + Math.cos(a) * r * 0.5 - s, y + Math.sin(a * 1.7) * r * 0.5 - 1, s * 2, 2); } }
+  if (p.look === 'earth') { ctx.fillStyle = '#5fae5a'; for (const [dx, dy, s] of [[-0.35, -0.2, 0.3], [0.3, 0.2, 0.25], [0.1, -0.5, 0.15]]) { ctx.beginPath(); ctx.ellipse(x + dx * r, y + dy * r, s * r * 1.3, s * r * 0.8, 0.3, 0, Math.PI * 2); ctx.fill(); } }
+  if (p.look === 'islands') { ctx.fillStyle = '#6fae4a'; for (const [dx, dy, s] of [[-0.3, -0.1, 0.25], [0.3, 0.3, 0.18], [0.2, -0.45, 0.12]]) { ctx.beginPath(); ctx.ellipse(x + dx * r, y + dy * r, s * r * 1.3, s * r, 0.4, 0, Math.PI * 2); ctx.fill(); } }
+  ctx.restore();
+  if (p.look === 'rings') {
+    ctx.save(); ctx.translate(x, y); ctx.scale(1, 0.28);
+    ctx.strokeStyle = 'rgba(230, 210, 160, 0.9)'; ctx.lineWidth = r * 0.35;
+    ctx.beginPath(); ctx.arc(0, 0, r * 1.65, 0, Math.PI); ctx.stroke(); ctx.restore();
+  }
+}
+
+function drawCat(x, y, size, o = {}) {
+  const { sx = 1, sy = 1, rot = 0, tint = null, flame = false, frost = false } = o;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sx, sy);
+  const s = size;
+  if (flame) {
+    const f = 0.8 + Math.random() * 0.4;
+    ctx.fillStyle = '#ffb347'; ctx.beginPath(); ctx.moveTo(-s * 0.3, s * 1.0); ctx.lineTo(0, s * (1.0 + 0.9 * f)); ctx.lineTo(s * 0.3, s * 1.0); ctx.fill();
+    ctx.fillStyle = '#fff2a8'; ctx.beginPath(); ctx.moveTo(-s * 0.15, s * 1.0); ctx.lineTo(0, s * (1.0 + 0.5 * f)); ctx.lineTo(s * 0.15, s * 1.0); ctx.fill();
+  }
+  ctx.strokeStyle = '#f39a3d'; ctx.lineWidth = s * 0.16; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(s * 0.45, s * 0.8); ctx.quadraticCurveTo(s * 1.1, s * 0.7, s * 0.9, s * 0.2); ctx.stroke();
+  ctx.fillStyle = '#e9e6f5'; ctx.beginPath(); ctx.ellipse(0, s * 0.62, s * 0.55, s * 0.45, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#f39a3d'; ctx.beginPath(); ctx.arc(0, s * 0.6, s * 0.12, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-s * 0.45, -s * 0.15); ctx.lineTo(-s * 0.42, -s * 0.72); ctx.lineTo(-s * 0.08, -s * 0.42); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(s * 0.45, -s * 0.15); ctx.lineTo(s * 0.42, -s * 0.72); ctx.lineTo(s * 0.08, -s * 0.42); ctx.fill();
+  ctx.beginPath(); ctx.arc(0, 0, s * 0.5, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#c96f1e'; ctx.lineWidth = s * 0.06;
+  for (const dx of [-0.12, 0, 0.12]) { ctx.beginPath(); ctx.moveTo(dx * s, -s * 0.45); ctx.lineTo(dx * s, -s * 0.3); ctx.stroke(); }
+  ctx.fillStyle = '#2a1f47';
+  ctx.beginPath(); ctx.arc(-s * 0.18, -s * 0.02, s * 0.075, 0, Math.PI * 2); ctx.arc(s * 0.18, -s * 0.02, s * 0.075, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-s * 0.155, -s * 0.05, s * 0.025, 0, Math.PI * 2); ctx.arc(s * 0.205, -s * 0.05, s * 0.025, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ff8fa3'; ctx.beginPath(); ctx.moveTo(-s * 0.06, s * 0.1); ctx.lineTo(s * 0.06, s * 0.1); ctx.lineTo(0, s * 0.17); ctx.fill();
+  ctx.strokeStyle = frost ? '#dff4ff' : '#fff'; ctx.lineWidth = Math.max(1, s * 0.03);
+  for (const side of [-1, 1]) for (const dy of [0.12, 0.2]) { ctx.beginPath(); ctx.moveTo(side * s * 0.15, s * dy); ctx.lineTo(side * s * 0.62, s * (dy - 0.05 + (dy - 0.16))); ctx.stroke(); }
+  ctx.fillStyle = 'rgba(190, 225, 255, 0.16)'; ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, -s * 0.08, s * 0.82, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.beginPath(); ctx.arc(0, -s * 0.08, s * 0.66, -2.5, -1.9); ctx.stroke();
+  if (tint) { ctx.fillStyle = tint; ctx.beginPath(); ctx.arc(0, -s * 0.08, s * 0.82, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+}
+
+function drawRock(o) {
+  ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.rot);
+  ctx.fillStyle = '#8a8196'; ctx.beginPath();
+  o.pts.forEach((p, k) => { const px = Math.cos(p.a) * p.d, py = Math.sin(p.a) * p.d; k ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#6b6378'; ctx.beginPath(); ctx.arc(o.r * 0.25, -o.r * 0.2, o.r * 0.22, 0, Math.PI * 2); ctx.arc(-o.r * 0.3, o.r * 0.3, o.r * 0.15, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function drawAlien(o) {
+  const r = o.r;
+  ctx.save(); ctx.translate(o.x, o.y);
+  ctx.strokeStyle = '#6fcf6a'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-r * 0.4, -r * 0.7); ctx.lineTo(-r * 0.6, -r * 1.3); ctx.moveTo(r * 0.4, -r * 0.7); ctx.lineTo(r * 0.6, -r * 1.3); ctx.stroke();
+  ctx.fillStyle = '#6fcf6a'; ctx.beginPath(); ctx.arc(-r * 0.6, -r * 1.35, 4, 0, Math.PI * 2); ctx.arc(r * 0.6, -r * 1.35, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 0, r, r * 0.85, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-r * 0.35, -r * 0.1, r * 0.25, 0, Math.PI * 2); ctx.arc(r * 0.35, -r * 0.1, r * 0.25, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#2a1f47'; ctx.beginPath(); ctx.arc(-r * 0.3, -r * 0.05, r * 0.11, 0, Math.PI * 2); ctx.arc(r * 0.3, -r * 0.05, r * 0.11, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#2a1f47'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-r * 0.62, -r * 0.5); ctx.lineTo(-r * 0.12, -r * 0.3); ctx.moveTo(r * 0.62, -r * 0.5); ctx.lineTo(r * 0.12, -r * 0.3); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, r * 0.55, r * 0.3, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
+  ctx.restore();
+}
+
+function drawFish(o) {
+  ctx.save(); ctx.translate(o.x, o.y);
+  ctx.fillStyle = 'rgba(124, 200, 255, 0.25)'; ctx.beginPath(); ctx.arc(0, 0, o.r * 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#7cc8ff'; ctx.beginPath(); ctx.ellipse(-2, 0, o.r, o.r * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(o.r * 0.7, 0); ctx.lineTo(o.r * 1.4, -o.r * 0.6); ctx.lineTo(o.r * 1.4, o.r * 0.6); ctx.fill();
+  ctx.fillStyle = '#2a1f47'; ctx.beginPath(); ctx.arc(-o.r * 0.55, -o.r * 0.1, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function drawCan(o) {
+  ctx.save(); ctx.translate(o.x, o.y);
+  ctx.fillStyle = 'rgba(255, 200, 80, 0.3)'; ctx.beginPath(); ctx.arc(0, 0, o.r * 1.6, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#e0484f'; ctx.beginPath(); ctx.roundRect(-11, -14, 22, 28, 4); ctx.fill();
+  ctx.fillStyle = '#ffd35c'; ctx.fillRect(-11, -3, 22, 7);
+  ctx.fillStyle = '#e0484f'; ctx.fillRect(-4, -19, 8, 6);
+  ctx.restore();
+}
+
+function bubble(text) {
+  ctx.font = `${Math.max(16, Math.min(22, W * 0.045))}px "Chalkboard SE", "Trebuchet MS", sans-serif`;
+  const maxW = Math.min(W - 40, 440);
+  const words = text.split(' '); const lines = []; let line = '';
+  for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW - 30) { lines.push(line); line = w; } else line = t; }
+  lines.push(line);
+  const lh = 26, bh = lines.length * lh + 24, bx = (W - maxW) / 2, by = H * 0.12;
+  ctx.fillStyle = '#f3eefc'; ctx.beginPath(); ctx.roundRect(bx, by, maxW, bh, 16); ctx.fill();
+  ctx.fillStyle = '#2a1f47'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  lines.forEach((l, k) => ctx.fillText(l, W / 2, by + 12 + lh / 2 + k * lh));
+}
+
+function ground(color, top = 0.72) { ctx.fillStyle = color; ctx.fillRect(0, H * top, W, H * (1 - top)); }
+function hearts(t, y0) { for (let k = 0; k < 5; k++) { const hy = y0 - ((t * 60 + k * 50) % 200), hx = W / 2 + Math.sin(t * 2 + k) * 40; ctx.fillStyle = '#ff6f91'; ctx.font = '24px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('♥', hx, hy); } }
+
+function drawPlatypus(x, y, flip, t) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(flip, 1); ctx.rotate(Math.sin(t * 8) * 0.06);
+  ctx.fillStyle = '#7a5230'; ctx.beginPath(); ctx.ellipse(-26, 4, 16, 8, 0, 0, Math.PI * 2); ctx.fill(); // flat tail
+  ctx.fillStyle = '#9a6a3e'; ctx.beginPath(); ctx.ellipse(0, 0, 24, 13, 0, 0, Math.PI * 2); ctx.fill();   // body
+  ctx.fillStyle = '#3a3a42'; ctx.beginPath(); ctx.roundRect(18, -6, 20, 10, 5); ctx.fill();              // duck bill
+  ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(14, -5, 2.2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#3a3a42'; ctx.fillRect(-10, 10, 7, 5); ctx.fillRect(6, 10, 7, 5);                      // webbed feet
+  ctx.restore();
+}
+
+function drawScene() {
+  const p = G.planets[dest], t = animT, s = catSize() * 1.6;
+  let x = W / 2, y = H * 0.62, o = {};
+  switch (p.react) {
+    case 'twosuns':
+      ctx.fillStyle = '#ffd86b'; ctx.beginPath(); ctx.arc(W * 0.72, H * 0.3, 30, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ff9f4a'; ctx.beginPath(); ctx.arc(W * 0.86, H * 0.36, 22, 0, Math.PI * 2); ctx.fill();
+      ground('#4fae6a', 0.72); ctx.fillStyle = '#6fd3ff'; ctx.fillRect(0, H * 0.84, W, H * 0.05);
+      y = H * 0.66 + Math.sin(t * 2) * 4; hearts(t, H * 0.55);
+      bubble(p.caption); break;
+    case 'platypus':
+      ground('#5fae5a', 0.72); ctx.fillStyle = '#4fa8d8'; ctx.fillRect(0, H * 0.82, W, H * 0.18);
+      for (let k = 0; k < 4; k++) { const dir = k % 2 ? 1 : -1; const px = ((k * 170 + t * 60 * dir) % (W + 100) + W + 100) % (W + 100) - 50; drawPlatypus(px, H * (k < 2 ? 0.76 : 0.88), dir, t + k); }
+      y = H * 0.64 + Math.abs(Math.sin(t * 4)) * -10; hearts(t, H * 0.52);
+      bubble(p.caption); break;
+    case 'squish':
+      ground('#8a6a4a', 0.72);
+      y = H * 0.62 + Math.min(t, 2) * 16;
+      o = { sx: 1 + Math.min(t, 1.5) * 0.35, sy: 1 - Math.min(t, 1.5) * 0.4 };
+      bubble(p.caption); break;
+    case 'spin':
+      ctx.fillStyle = `hsla(${(t * 200) % 360}, 90%, 60%, 0.3)`; ctx.fillRect(0, 0, W, H);
+      for (let k = 0; k < 5; k++) { ctx.strokeStyle = `hsla(${(k * 70 + t * 120) % 360}, 90%, 65%, 0.6)`; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(0, H * 0.3 + k * 14 + Math.sin(t * 3 + k) * 20); ctx.bezierCurveTo(W * 0.3, H * 0.1, W * 0.7, H * 0.45, W, H * 0.25 + k * 14); ctx.stroke(); }
+      ground('#7a3fbf', 0.74);
+      for (let k = 0; k < 6; k++) { ctx.fillStyle = `hsl(${(k * 60 + t * 90) % 360}, 80%, 70%)`; ctx.beginPath(); ctx.moveTo((k + 0.5) * W / 6, H * 0.74); ctx.lineTo((k + 0.5) * W / 6 - 10, H * 0.8); ctx.lineTo((k + 0.5) * W / 6 + 10, H * 0.8); ctx.fill(); }
+      o = { rot: t * 7 }; y = H * 0.6 - Math.abs(Math.sin(t * 3)) * 20;
+      bubble(p.caption); break;
+    case 'mushroom': {
+      ground('#5a3d7a', 0.74);
+      const shrooms = [[0.12, 0.28, '#ff7aa8'], [0.3, 0.18, '#7ad6ff'], [0.75, 0.3, '#c8ff7a'], [0.9, 0.2, '#ffb35c']];
+      for (const [fx, hgt, col] of shrooms) {
+        const mx = fx * W, top = H * (0.74 - hgt);
+        ctx.fillStyle = '#f3ead8'; ctx.fillRect(mx - 8, top, 16, H * hgt);
+        ctx.fillStyle = col; ctx.globalAlpha = 0.3 + 0.2 * Math.sin(t * 3 + fx * 10); ctx.beginPath(); ctx.arc(mx, top, 55, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.fillStyle = col; ctx.beginPath(); ctx.arc(mx, top + 4, 40, Math.PI, 0); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath(); ctx.arc(mx - 15, top - 14, 6, 0, Math.PI * 2); ctx.arc(mx + 12, top - 20, 5, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(255, 240, 200, 0.7)'; for (let k = 0; k < 20; k++) { ctx.beginPath(); ctx.arc((k * 67 + t * 20) % W, (k * 41 + t * 30) % (H * 0.7), 2, 0, Math.PI * 2); ctx.fill(); }
+      const sneeze = t > 2.2 && t < 2.8;
+      o = { sx: sneeze ? 1.15 : 1, sy: sneeze ? 0.85 : 1 }; x += sneeze ? Math.sin(t * 60) * 4 : 0;
+      bubble(t < 2.2 ? 'Giant glowing mushrooms! Ah... ah...' : 'ACHOO! So many spores!'); break;
+    }
+    case 'hot': {
+      const hot = t < 2.5;
+      ctx.fillStyle = 'rgba(255, 120, 40, 0.3)'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#fff3a0'; ctx.beginPath(); ctx.arc(W * 0.8, H * 0.32, 70, 0, Math.PI * 2); ctx.fill();
+      ground('#b8401e', 0.72);
+      x += Math.sin(t * 40) * 3; y = H * 0.62 - Math.abs(Math.sin(t * 10)) * 12;
+      o = { tint: 'rgba(255, 80, 40, 0.3)' };
+      bubble(hot ? p.caption : 'No water, no air... back to the ship!'); break;
+    }
+    case 'sink':
+      for (let k = 0; k < 6; k++) { ctx.fillStyle = k % 2 ? p.c1 : p.c2; ctx.globalAlpha = 0.85; ctx.fillRect(0, H * 0.55 + k * H * 0.08 + Math.sin(t * 2 + k) * 6, W, H * 0.09); }
+      ctx.globalAlpha = 1;
+      y = H * 0.55 + Math.sin(Math.min(t, 3.2) / 3.2 * Math.PI) * H * 0.2;
+      bubble(p.caption); break;
+    case 'ember': {
+      ctx.fillStyle = 'rgba(140, 30, 20, 0.35)'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(255, 90, 60, 0.3)'; ctx.beginPath(); ctx.arc(W * 0.78, H * 0.3, 110, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#e0503a'; ctx.beginPath(); ctx.arc(W * 0.78, H * 0.3, 60, 0, Math.PI * 2); ctx.fill();
+      ground('#2a1a1a', 0.72); ctx.fillStyle = '#6a4a8a'; ctx.fillRect(0, H * 0.84, W, H * 0.05);
+      for (const fx of [0.08, 0.22, 0.78, 0.92]) { const tx = fx * W; ctx.fillStyle = '#140c0c'; ctx.fillRect(tx - 4, H * 0.62, 8, H * 0.1); ctx.beginPath(); ctx.arc(tx, H * 0.6, 26, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = 'rgba(255, 90, 60, 0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tx, H * 0.6, 26, -2.6, -0.6); ctx.stroke(); }
+      y = H * 0.66 + Math.sin(t * 2) * 4; hearts(t, H * 0.55);
+      bubble(p.caption); break;
+    }
+    case 'creatures': {
+      if (p.rainbow) ['#ff6f6f', '#ffb347', '#ffe066', '#7be07b', '#6fb8ff', '#b57bff'].forEach((c, k) => { ctx.strokeStyle = c; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(W / 2, H * 0.72, Math.min(W, H) * 0.45 - k * 8, Math.PI, 0); ctx.stroke(); });
+      ground(p.groundColor, 0.72);
+      if (p.waterStrip) { ctx.fillStyle = '#4fa8d8'; ctx.fillRect(0, H * 0.87, W, H * 0.13); }
+      if (p.look === 'sparkle') twinkles(t);
+      for (let k = 0; k < 3; k++) { const dir = k % 2 ? 1 : -1, span = W + 200; const cx = ((k * span / 3 + t * 50 * dir) % span + span) % span - 100; drawCreature(p.creature, cx, H * (0.78 + k * 0.03), t + k, dir, 1); }
+      y = H * 0.64 + Math.sin(t * 2) * 4; hearts(t, H * 0.52);
+      bubble(p.caption); break;
+    }
+    case 'cold': {
+      ctx.fillStyle = 'rgba(200, 225, 255, 0.25)'; ctx.fillRect(0, 0, W, H);
+      ground('#eef3fb', 0.72);
+      for (let k = 0; k < 2; k++) { const span = W + 260; drawCreature('mammoth', ((k * span / 2 + t * 30) % span) - 130, H * (0.8 + k * 0.06), t + k, 1, 1); }
+      ctx.fillStyle = '#fff'; for (let k = 0; k < 40; k++) { ctx.beginPath(); ctx.arc((k * 73 + Math.sin(t + k) * 10) % W, (k * 37 + t * 60) % H, 2, 0, Math.PI * 2); ctx.fill(); }
+      x += Math.sin(t * 30) * 2; o = { frost: true, tint: 'rgba(200, 235, 255, 0.3)' };
+      bubble(p.caption); break;
+    }
+    case 'buzz': {
+      ground(p.groundColor, 0.72);
+      for (let k = 0; k < 8; k++) { const fx = (k + 0.5) * W / 8; ctx.strokeStyle = '#2f5a25'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(fx, H * 0.72); ctx.quadraticCurveTo(fx + 20, H * 0.62, fx + 35, H * 0.6); ctx.stroke(); }
+      for (let k = 0; k < 3; k++) { const a = t * 2.5 + k * 2.1; drawCreature('dragonfly', W / 2 + Math.cos(a) * 110, H * 0.5 + Math.sin(a * 1.3) * 60, t + k, Math.sin(a) > 0 ? -1 : 1, 1); }
+      const duck = Math.sin(t * 4) > 0.6; o = { sy: duck ? 0.75 : 1, sx: duck ? 1.15 : 1 }; y = H * 0.64 + (duck ? 8 : 0);
+      bubble(p.caption); break;
+    }
+    case 'float': {
+      ctx.fillStyle = 'rgba(245, 225, 255, 0.35)'; ctx.fillRect(0, 0, W, H);
+      for (let k = 0; k < 6; k++) { const cx = ((k * 160 + t * 20) % (W + 200)) - 100, cy = H * (0.3 + (k % 3) * 0.2); ctx.fillStyle = 'rgba(255, 255, 255, 0.85)'; ctx.beginPath(); ctx.ellipse(cx, cy, 70, 22, 0, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.ellipse(cx + 30, cy - 12, 40, 18, 0, 0, Math.PI * 2); ctx.fill(); }
+      const iy = H * 0.7 + Math.sin(t * 1.5) * 12;
+      ctx.fillStyle = '#7a5a3a'; ctx.beginPath(); ctx.moveTo(W / 2 - 70, iy + 6); ctx.lineTo(W / 2, iy + 60); ctx.lineTo(W / 2 + 70, iy + 6); ctx.fill();
+      ctx.fillStyle = '#6fae4a'; ctx.beginPath(); ctx.ellipse(W / 2, iy, 90, 22, 0, 0, Math.PI * 2); ctx.fill();
+      for (let k = 0; k < 3; k++) drawCreature('jelly', W * (0.15 + k * 0.35), ((H * (0.9 - k * 0.1) - t * 40) % H + H) % H, t + k, 1, 1);
+      y = iy - 40;
+      bubble(p.caption); break;
+    }
+    case 'chase': {
+      ground(p.groundColor, 0.72);
+      ctx.fillStyle = '#4a3a3a'; ctx.beginPath(); ctx.moveTo(W * 0.72, H * 0.72); ctx.lineTo(W * 0.84, H * 0.48); ctx.lineTo(W * 0.96, H * 0.72); ctx.fill();
+      for (let k = 0; k < 5; k++) { ctx.fillStyle = 'rgba(80, 80, 80, 0.5)'; ctx.beginPath(); ctx.arc(W * 0.84 + Math.sin(t + k) * 10, H * 0.46 - ((t * 40 + k * 25) % 120), 10 + k * 3, 0, Math.PI * 2); ctx.fill(); }
+      drawCreature('dino', -W * 0.2 + t * W * 0.2, H * 0.8, t, 1, 1);
+      x = W * 0.55 + t * W * 0.08; y = H * 0.64 - (t > 2.8 ? (t - 2.8) * H * 0.5 : Math.abs(Math.sin(t * 12)) * 8);
+      bubble(p.caption); break;
+    }
+    case 'glass': {
+      for (let k = 0; k < 6; k++) { ctx.fillStyle = k % 2 ? p.c1 : p.c2; ctx.globalAlpha = 0.85; ctx.fillRect(0, H * 0.5 + k * H * 0.09 + Math.sin(t * 2 + k) * 6, W, H * 0.1); }
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = 'rgba(255, 120, 40, 0.18)'; ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = 'rgba(220, 245, 255, 0.9)'; ctx.lineWidth = 2;
+      for (let k = 0; k < 30; k++) { const gx = ((k * 97 + t * 700) % (W + 200)) - 100, gy = (k * 53 + t * 120) % H; ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(gx + 26, gy + 6); ctx.stroke(); }
+      x += Math.sin(t * 30) * 3; y = H * 0.55 + Math.min(t, 3) * 10; o = { tint: 'rgba(255, 120, 60, 0.25)' };
+      bubble(p.caption); break;
+    }
+    case 'diamond': {
+      ctx.fillStyle = 'rgba(255, 120, 40, 0.2)'; ctx.fillRect(0, 0, W, H);
+      ground('#b8d4ea', 0.72);
+      for (let k = 0; k < 10; k++) { const cx = (k + 0.5) * W / 10, cy = H * 0.74; ctx.fillStyle = k % 2 ? '#e8f6ff' : '#9fc4e0'; ctx.beginPath(); ctx.moveTo(cx - 14, cy); ctx.lineTo(cx, cy - 28 - (k % 3) * 8); ctx.lineTo(cx + 14, cy); ctx.fill(); }
+      ctx.strokeStyle = '#ff7a2a'; ctx.lineWidth = 4; for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(W * (0.1 + k * 0.25), H * 0.8); ctx.lineTo(W * (0.15 + k * 0.25), H * 0.88); ctx.lineTo(W * (0.12 + k * 0.25), H * 0.96); ctx.stroke(); }
+      twinkles(t);
+      y = H * 0.62 - Math.abs(Math.sin(t * 9)) * 16; o = { tint: 'rgba(255, 90, 40, 0.25)' };
+      bubble(p.caption); break;
+    }
+    case 'time': {
+      ground('#3a3f5a', 0.74);
+      const bx = W * 0.78, by = H * 0.4;
+      ctx.save(); ctx.translate(bx, by); ctx.rotate(-0.3);
+      ctx.strokeStyle = 'rgba(255, 170, 70, 0.9)'; ctx.lineWidth = 10; ctx.beginPath(); ctx.ellipse(0, 0, 70, 18, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+      ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(bx, by, 30, 0, Math.PI * 2); ctx.fill();
+      const cx = W * 0.22, cy = H * 0.42, cr = 40, days = Math.min(8, Math.floor(t * 2.5));
+      ctx.fillStyle = '#f3eefc'; ctx.beginPath(); ctx.arc(cx, cy, cr, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#2a1f47'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(t * 0.3) * cr * 0.7, cy - Math.cos(t * 0.3) * cr * 0.7); ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.font = '16px "Chalkboard SE", "Trebuchet MS", sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('Moon Base: ' + days + (days === 1 ? ' day' : ' days'), cx, cy + cr + 22);
+      y = H * 0.62 + Math.sin(t * 0.8) * 6;
+      bubble(p.caption); break;
+    }
+  }
+  drawCat(x, y, s, o);
+}
+
+
+// ---------- Story pictures ----------
+const EARTH = { c1: '#7cc4ff', c2: '#1f4f9e', look: 'earth' };
+const MOON = { c1: '#d8d4e2', c2: '#8a8698' };
+function drawProbe(x, y, k) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+  ctx.fillStyle = '#4a7bd0'; ctx.fillRect(-28, -6, 16, 12); ctx.fillRect(12, -6, 16, 12);
+  ctx.strokeStyle = '#2a4a8a'; ctx.lineWidth = 1; for (const sx of [-28, 12]) for (let g = 1; g < 4; g++) { ctx.beginPath(); ctx.moveTo(sx + g * 4, -6); ctx.lineTo(sx + g * 4, 6); ctx.stroke(); }
+  ctx.fillStyle = '#c9c4d6'; ctx.fillRect(-12, -10, 24, 20);
+  ctx.strokeStyle = '#c9c4d6'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(0, -18); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, -20, 5, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = '#f39a3d'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+function drawDome(x, y, r) {
+  ctx.fillStyle = 'rgba(190, 230, 255, 0.3)'; ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x, y, r, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+}
+function kitten(x, y, s, t, k) { drawCat(x, y + Math.sin(t * 6 + k) * 2, s); }
+function drawStory(i, t) {
+  const m = Math.min(W, H);
+  const skyH = H * 0.62; // keep pictures above the caption box
+  if (i === 0) {
+    drawPlanet(EARTH, W / 2, skyH * 0.95, m * 0.28);
+    for (const [dx, k] of [[-0.14, 0], [0.12, 1], [0, 2]]) if (t < 1.5 || k !== 2) kitten(W / 2 + dx * m, skyH * 0.95 - m * 0.28 - 12, 12, t, k);
+    if (t >= 1.5) drawCat(W / 2, skyH * 0.95 - m * 0.28 - 12 - (t - 1.5) * 90, 20, { flame: true });
+  } else if (i === 1) {
+    const e = { x: W * 0.18, y: skyH * 0.75 }, mo = { x: W * 0.8, y: skyH * 0.45 };
+    drawPlanet(EARTH, e.x, e.y, m * 0.1);
+    drawPlanet(MOON, mo.x, mo.y, m * 0.15);
+    const k = Math.min(1, t / 3);
+    ctx.setLineDash([6, 8]); ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.quadraticCurveTo(W / 2, skyH * 0.1, mo.x, mo.y - m * 0.15); ctx.stroke(); ctx.setLineDash([]);
+    const cx = (1 - k) ** 2 * e.x + 2 * (1 - k) * k * (W / 2) + k * k * mo.x;
+    const cy = (1 - k) ** 2 * e.y + 2 * (1 - k) * k * (skyH * 0.1) + k * k * (mo.y - m * 0.15);
+    if (k >= 1) { drawDome(mo.x - 20, mo.y - m * 0.1, 18); drawDome(mo.x + 22, mo.y - m * 0.12, 12); }
+    drawCat(cx, cy - 20, 16, { flame: k < 1 });
+  } else if (i === 2) {
+    const night = t % 6 > 3;
+    ctx.fillStyle = night ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0)'; ctx.fillRect(0, 0, W, H);
+    if (!night) { ctx.fillStyle = '#fff3a0'; ctx.beginPath(); ctx.arc(W * 0.12, skyH * 0.2, 26, 0, Math.PI * 2); ctx.fill(); }
+    drawPlanet(EARTH, W * 0.86, skyH * 0.18, 20);
+    ctx.fillStyle = '#9a96a8'; ctx.fillRect(0, skyH * 0.85, W, H);
+    drawDome(W * 0.3, skyH * 0.85, m * 0.14);
+    kitten(W * 0.3 - 16, skyH * 0.85 - 16, 11, t, 0); kitten(W * 0.3 + 16, skyH * 0.85 - 16, 11, t, 1);
+    const jump = Math.abs(Math.sin(t * 1.3)) * skyH * 0.45;
+    drawCat(W * 0.68, skyH * 0.85 - 22 - jump, 18);
+    ctx.fillStyle = '#fff'; ctx.font = '16px "Chalkboard SE", "Trebuchet MS", sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Boing!', W * 0.68, skyH * 0.85 - 60 - jump);
+  } else if (i === 3) {
+    ctx.fillStyle = '#9a96a8'; ctx.fillRect(0, skyH * 0.9, W, H);
+    const r = m * 0.3 * (1 + (t > 3 ? Math.sin(t * 10) * 0.03 : 0));
+    drawDome(W / 2, skyH * 0.9, r);
+    const n = Math.min(14, Math.floor(t * 4) + 1);
+    for (let k = 0; k < n; k++) {
+      const row = Math.floor(k / 5), col = k % 5;
+      kitten(W / 2 + (col - 2) * r * 0.32 + (row % 2) * 10, skyH * 0.9 - 14 - row * 24, 10, t, k);
+    }
+    if (t > 3.5) { kitten(W / 2 - r * 0.2, skyH * 0.9 - r - 10, 10, t, 20); ctx.fillStyle = '#fff'; ctx.font = '18px "Chalkboard SE", "Trebuchet MS", sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Too crowded!', W / 2, skyH * 0.9 - r - 34); }
+  } else if (i === 4) {
+    ctx.fillStyle = '#9a96a8'; ctx.fillRect(0, skyH * 0.9, W, H);
+    const tx = W * 0.25, ty = skyH * 0.9;
+    ctx.save(); ctx.translate(tx, ty - 40); ctx.rotate(-0.6);
+    ctx.fillStyle = '#e9e6f5'; ctx.fillRect(-10, -12, 80, 24); ctx.fillStyle = '#f39a3d'; ctx.fillRect(62, -15, 14, 30); ctx.restore();
+    ctx.strokeStyle = '#e9e6f5'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(tx, ty - 40); ctx.lineTo(tx - 20, ty); ctx.moveTo(tx, ty - 40); ctx.lineTo(tx + 20, ty); ctx.stroke();
+    drawCat(tx - 40, ty - 24, 16);
+    const vx = W * 0.62, vy = skyH * 0.42, vr = m * 0.26;
+    ctx.fillStyle = 'rgba(10, 8, 30, 0.9)'; ctx.strokeStyle = '#f39a3d'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(vx, vy, vr, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    const n = G.planets.length;
+    G.planets.forEach((p, k) => { if (t > 0.5 + k * 0.5) { const a = -Math.PI / 2 + k * 2 * Math.PI / n; drawPlanet(p, vx + Math.cos(a) * vr * 0.58, vy + Math.sin(a) * vr * 0.58, vr * 0.16); } });
+  } else {
+    const cx = W / 2, cy = skyH * 0.85;
+    drawCat(cx, cy - 20, 20, { flame: true });
+    G.planets.forEach((p, k) => {
+      const px = W * (0.1 + k * 0.8 / (G.planets.length - 1)), py = skyH * 0.22 + (k % 2) * 30;
+      ctx.setLineDash([6, 8]); ctx.strokeStyle = k < 3 ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.2)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx, cy - 50); ctx.lineTo(px, py + 24); ctx.stroke(); ctx.setLineDash([]);
+      drawPlanet(p, px, py, 18);
+    });
+    ctx.fillStyle = '#fff'; ctx.font = '26px "Chalkboard SE", "Trebuchet MS", sans-serif'; ctx.textAlign = 'center';
+    const f = Math.max(0.2, 1 - (t % 4) / 4);
+    ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(16, skyH * 0.45, 22, 90);
+    ctx.fillStyle = '#f39a3d'; ctx.fillRect(16, skyH * 0.45 + 90 * (1 - f), 22, 90 * f);
+    ctx.fillStyle = '#fff'; ctx.font = '14px "Chalkboard SE", "Trebuchet MS", sans-serif'; ctx.fillText('Fuel', 27, skyH * 0.45 + 108);
+  }
+}
+
+function drawMoonBase() {
+  ctx.fillStyle = '#9a96a8'; ctx.beginPath(); ctx.ellipse(W / 2, H * 1.15, W * 0.9, H * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#7d7990'; for (const [dx, dy, r] of [[-0.3, 0.92, 18], [0.25, 0.95, 12], [0.05, 0.9, 9]]) { ctx.beginPath(); ctx.ellipse(W / 2 + dx * W, H * dy, r * 1.6, r * 0.6, 0, 0, Math.PI * 2); ctx.fill(); }
+  ctx.fillStyle = 'rgba(190, 230, 255, 0.35)'; ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(W * 0.22, H * 0.9, 50, Math.PI, 0); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W * 0.8, H * 0.9, 34, Math.PI, 0); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#4a7bd0'; ctx.beginPath(); ctx.arc(W * 0.85, H * 0.15, 26, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#6fae4a'; ctx.beginPath(); ctx.ellipse(W * 0.84, H * 0.14, 10, 7, 0.5, 0, Math.PI * 2); ctx.fill();
+}
+
+function draw() {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#140f2e'); g.addColorStop(1, '#2b1d52');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#fff';
+  for (const s of starfield) { ctx.globalAlpha = 0.4 + s.s * 0.3; ctx.fillRect(s.x * W, s.y * H, s.s, s.s); }
+  ctx.globalAlpha = 1;
+
+  if (state === 'fly' || state === 'arrive') {
+    const p = G.planets[dest];
+    const r = state === 'fly' ? 10 + progress * 30 : 40 + animT * H * 0.25;
+    const py = state === 'fly' ? 80 + r : 110 + animT * H * 0.12;
+    drawPlanet(p, W / 2, py, r);
+    for (const o of obs) ({ rock: drawRock, alien: drawAlien, fish: drawFish, can: drawCan, comet: drawComet, worm: drawWorm, bh: drawBH, mimic: drawMimic, disc: drawDisc })[o.type](o);
+    const size = catSize();
+    const blink = invuln > 0 && Math.floor(invuln * 10) % 2 === 0;
+    if (!blink) {
+      if (shield > 0 && state === 'fly') {
+        ctx.strokeStyle = `rgba(124, 200, 255, ${0.25 + 0.2 * shield})`; ctx.lineWidth = 1 + shield * 1.2;
+        ctx.beginPath(); ctx.arc(cat.x, cat.y, size * 1.15, 0, Math.PI * 2); ctx.stroke();
+      }
+      drawCat(cat.x, cat.y, size, { flame: true });
+    }
+  } else if (state === 'story') {
+    drawStory(storyIdx, animT);
+  } else if (state === 'land') {
+    drawScene();
+  } else {
+    drawMoonBase();
+    drawCat(W / 2, H * 0.78 + Math.sin(performance.now() / 600) * 8, catSize() * 1.3, { flame: true });
+  }
+}
+
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  update(dt); draw();
+  requestAnimationFrame(loop);
+}
+titleScreen();
+loadSave().then(() => { if (state === 'title') titleScreen(); });
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
